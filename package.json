@@ -1,0 +1,19 @@
+{
+  "name": "ui2prompt",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chrome extension for UI annotation, fix verification, and structured LLM prompt export.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "icons": "node scripts/gen-icons.mjs",
+    "build": "node scripts/gen-icons.mjs && node build.mjs",
+    "watch": "node build.mjs --watch",
+    "harness": "npm run build && node scripts/build-harness.mjs",
+    "package": "npm run build && cd dist && zip -r ../ui2prompt-dist.zip . && cd ..",
+    "clean": "rm -rf dist ui2prompt-dist.zip"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

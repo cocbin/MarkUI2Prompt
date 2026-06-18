@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UI2Prompt</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <div class="brand-text">
+          <span class="brand-name">UI2Prompt</span>
+          <span class="brand-tagline" id="tagline"></span>
+        </div>
+      </div>
+      <div class="head-actions">
+        <select id="langSel" class="icon-select" title="Language"></select>
+        <button id="themeBtn" class="icon-btn" type="button" title="Theme"></button>
+        <button id="modeBtn" class="mode-btn" type="button"></button>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <div id="filters" class="filters"></div>
+    </div>
+
+    <main id="list" class="list"></main>
+
+    <section id="projects" class="projects"></section>
+
+    <footer class="app-footer">
+      <button id="exportPage" class="btn ghost" type="button"></button>
+      <button id="downloadPage" class="btn ghost" type="button"></button>
+      <button id="exportAll" class="btn ghost" type="button"></button>
+      <button id="clearPage" class="btn danger-text" type="button"></button>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

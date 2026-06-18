@@ -1,0 +1,83 @@
+export default {
+  appName: "UI2Prompt",
+  tagline: "UI 注釈 → LLM プロンプト",
+
+  "mode.start": "注釈する",
+  "mode.stop": "停止",
+  "mode.unavailable": "このページでは利用できません",
+
+  "toolbar.title": "注釈モード",
+  "toolbar.count": "{n} 件の注釈",
+  "toolbar.hint": "要素をクリックして注釈",
+  "toolbar.exit": "終了",
+  "toolbar.shot": "スクショ",
+
+  "filter.all": "すべて",
+
+  "status.open": "未対応",
+  "status.fixed_pending": "修正済み・確認待ち",
+  "status.confirmed": "確認済み",
+  "status.rejected": "却下",
+
+  "create.title": "新しい注釈",
+  "create.placeholder": "UI の問題を説明…",
+  "create.save": "保存",
+  "create.cancel": "キャンセル",
+  "create.pick": "要素を参照",
+  "create.pickHint": "要素をクリックしてセレクタを挿入",
+
+  "detail.title": "注釈の詳細",
+  "detail.markFixed": "修正済みにする",
+  "detail.confirm": "確認",
+  "detail.reject": "却下",
+  "detail.reopen": "再オープン",
+  "detail.edit": "編集",
+  "detail.locate": "位置へ",
+  "detail.delete": "削除",
+  "detail.framework": "フレームワーク",
+  "detail.location": "位置",
+  "detail.none": "（なし）",
+  "detail.editTitle": "注釈を編集",
+  "detail.save": "保存",
+  "detail.back": "戻る",
+
+  "reject.title": "修正結果を却下",
+  "reject.hint": "説明を書き直せます（任意）。注釈は「未対応」に戻ります。",
+  "reject.confirm": "却下して再オープン",
+  "reject.back": "戻る",
+
+  "tooltip.degraded": "元の要素が見つかりません（DOM が変化した可能性）",
+
+  "list.empty": "注釈はまだありません。「注釈する」で開始",
+  "list.emptyFiltered": "この絞り込みに該当なし",
+  "item.history": "履歴",
+  "item.noNote": "（説明なし）",
+
+  "projects.others": "他のページ",
+  "projects.count": "全 {total} 件 · 未処理 {active}",
+
+  "footer.copyPage": "このページをコピー",
+  "footer.copyAll": "すべてコピー",
+  "footer.download": "ダウンロード",
+  "footer.clear": "このページを消去",
+
+  "settings.theme": "テーマ",
+  "settings.language": "言語",
+  "theme.light": "ライト",
+  "theme.dark": "ダーク",
+  "theme.system": "システム",
+
+  "toast.located": "ページ上で位置を表示",
+  "toast.locateFail": "位置特定不可：スクリプト未読み込み",
+  "toast.copied": "プロンプトをコピー",
+  "toast.copyFail": "コピー失敗",
+  "toast.downloaded": "プロンプトを保存",
+  "toast.noAnnotations": "このページに注釈はありません",
+  "toast.cleared": "ページを消去しました",
+  "toast.confirmClear": "このページの注釈をすべて消去しますか？",
+  "toast.switchFail": "切り替え失敗",
+  "toast.shotMaking": "注釈付きスクショを生成中…",
+  "toast.shotDone": "注釈付きスクショを保存",
+  "toast.shotFail": "この環境では撮影できません",
+  "toast.refInserted": "参照を挿入しました",
+};

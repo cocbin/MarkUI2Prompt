@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "UI2Prompt - UI 标注与 LLM 分析",
+  "version": "1.0.0",
+  "description": "在任意网页中进行 UI 标注、问题记录、修复后验证，并导出结构化 LLM 分析提示词。",
+  "permissions": ["storage", "unlimitedStorage", "scripting", "activeTab", "tabs", "downloads"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "UI2Prompt",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["main-world.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "ISOLATED",
+      "all_frames": false
+    }
+  ],
+  "commands": {
+    "toggle-annotation": {
+      "suggested_key": { "default": "Alt+Shift+A" },
+      "description": "切换 UI 标注模式"
+    }
+  }
+}

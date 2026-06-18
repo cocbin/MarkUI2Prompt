@@ -1,0 +1,83 @@
+export default {
+  appName: "UI2Prompt",
+  tagline: "UI annotation → LLM prompt",
+
+  "mode.start": "Annotate",
+  "mode.stop": "Stop",
+  "mode.unavailable": "Not available here",
+
+  "toolbar.title": "Annotation mode",
+  "toolbar.count": "{n} annotations",
+  "toolbar.hint": "Click an element to annotate",
+  "toolbar.exit": "Exit",
+  "toolbar.shot": "Screenshot",
+
+  "filter.all": "All",
+
+  "status.open": "Open",
+  "status.fixed_pending": "Fixed · pending",
+  "status.confirmed": "Confirmed",
+  "status.rejected": "Rejected",
+
+  "create.title": "New annotation",
+  "create.placeholder": "Describe the UI problem…",
+  "create.save": "Save",
+  "create.cancel": "Cancel",
+  "create.pick": "Reference element",
+  "create.pickHint": "Click an element to insert its selector",
+
+  "detail.title": "Annotation",
+  "detail.markFixed": "Mark fixed",
+  "detail.confirm": "Confirm",
+  "detail.reject": "Reject",
+  "detail.reopen": "Reopen",
+  "detail.edit": "Edit",
+  "detail.locate": "Locate",
+  "detail.delete": "Delete",
+  "detail.framework": "Framework",
+  "detail.location": "Location",
+  "detail.none": "(none)",
+  "detail.editTitle": "Edit annotation",
+  "detail.save": "Save",
+  "detail.back": "Back",
+
+  "reject.title": "Reject fix",
+  "reject.hint": "Optionally revise the description. The annotation reopens for another pass.",
+  "reject.confirm": "Reject & reopen",
+  "reject.back": "Back",
+
+  "tooltip.degraded": "Original element can no longer be located (DOM changed)",
+
+  "list.empty": "No annotations yet. Click Annotate to start.",
+  "list.emptyFiltered": "No annotations match this filter",
+  "item.history": "History",
+  "item.noNote": "(no description)",
+
+  "projects.others": "Other pages",
+  "projects.count": "{total} total · {active} pending",
+
+  "footer.copyPage": "Copy page prompt",
+  "footer.copyAll": "Copy all",
+  "footer.download": "Download",
+  "footer.clear": "Clear page",
+
+  "settings.theme": "Theme",
+  "settings.language": "Language",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+  "theme.system": "System",
+
+  "toast.located": "Located on page",
+  "toast.locateFail": "Cannot locate: page script not loaded",
+  "toast.copied": "Prompt copied",
+  "toast.copyFail": "Copy failed",
+  "toast.downloaded": "Prompt downloaded",
+  "toast.noAnnotations": "No annotations on this page",
+  "toast.cleared": "Page cleared",
+  "toast.confirmClear": "Clear all annotations on this page?",
+  "toast.switchFail": "Failed to toggle",
+  "toast.shotMaking": "Generating annotated screenshot…",
+  "toast.shotDone": "Annotated screenshot saved",
+  "toast.shotFail": "Screenshot unavailable here",
+  "toast.refInserted": "Reference inserted",
+};

@@ -1,0 +1,6 @@
+node_modules/
+dist/
+icons/
+ui2prompt-dist.zip
+*.log
+.DS_Store

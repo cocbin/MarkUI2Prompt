@@ -1,0 +1,83 @@
+export default {
+  appName: "UI2Prompt",
+  tagline: "UI 주석 → LLM 프롬프트",
+
+  "mode.start": "주석 시작",
+  "mode.stop": "중지",
+  "mode.unavailable": "이 페이지에서는 사용할 수 없음",
+
+  "toolbar.title": "주석 모드",
+  "toolbar.count": "{n}개 주석",
+  "toolbar.hint": "요소를 클릭하여 주석",
+  "toolbar.exit": "종료",
+  "toolbar.shot": "스크린샷",
+
+  "filter.all": "전체",
+
+  "status.open": "미처리",
+  "status.fixed_pending": "수정됨·확인 대기",
+  "status.confirmed": "확인됨",
+  "status.rejected": "거부됨",
+
+  "create.title": "새 주석",
+  "create.placeholder": "UI 문제를 설명…",
+  "create.save": "저장",
+  "create.cancel": "취소",
+  "create.pick": "요소 참조",
+  "create.pickHint": "요소를 클릭해 선택자를 삽입",
+
+  "detail.title": "주석 상세",
+  "detail.markFixed": "수정됨으로 표시",
+  "detail.confirm": "확인",
+  "detail.reject": "거부",
+  "detail.reopen": "다시 열기",
+  "detail.edit": "편집",
+  "detail.locate": "위치",
+  "detail.delete": "삭제",
+  "detail.framework": "프레임워크",
+  "detail.location": "위치",
+  "detail.none": "(없음)",
+  "detail.editTitle": "주석 편집",
+  "detail.save": "저장",
+  "detail.back": "뒤로",
+
+  "reject.title": "수정 결과 거부",
+  "reject.hint": "설명을 다시 입력할 수 있습니다(선택). 주석은 ‘미처리’로 돌아갑니다.",
+  "reject.confirm": "거부 후 다시 열기",
+  "reject.back": "뒤로",
+
+  "tooltip.degraded": "원래 요소를 찾을 수 없음 (DOM 변경 가능성)",
+
+  "list.empty": "아직 주석이 없습니다. ‘주석 시작’을 누르세요",
+  "list.emptyFiltered": "이 필터에 해당하는 주석 없음",
+  "item.history": "기록",
+  "item.noNote": "(설명 없음)",
+
+  "projects.others": "다른 페이지",
+  "projects.count": "총 {total}개 · 대기 {active}",
+
+  "footer.copyPage": "이 페이지 복사",
+  "footer.copyAll": "전체 복사",
+  "footer.download": "다운로드",
+  "footer.clear": "페이지 비우기",
+
+  "settings.theme": "테마",
+  "settings.language": "언어",
+  "theme.light": "라이트",
+  "theme.dark": "다크",
+  "theme.system": "시스템",
+
+  "toast.located": "페이지에서 위치 표시",
+  "toast.locateFail": "위치 불가: 스크립트 미로드",
+  "toast.copied": "프롬프트 복사됨",
+  "toast.copyFail": "복사 실패",
+  "toast.downloaded": "프롬프트 다운로드됨",
+  "toast.noAnnotations": "이 페이지에 주석이 없습니다",
+  "toast.cleared": "페이지를 비웠습니다",
+  "toast.confirmClear": "이 페이지의 모든 주석을 지울까요?",
+  "toast.switchFail": "전환 실패",
+  "toast.shotMaking": "주석 스크린샷 생성 중…",
+  "toast.shotDone": "주석 스크린샷 저장됨",
+  "toast.shotFail": "이 환경에서는 캡처할 수 없음",
+  "toast.refInserted": "참조가 삽입됨",
+};

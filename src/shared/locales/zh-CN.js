@@ -1,0 +1,83 @@
+export default {
+  appName: "UI2Prompt",
+  tagline: "UI 标注 → LLM 提示词",
+
+  "mode.start": "开始标注",
+  "mode.stop": "停止标注",
+  "mode.unavailable": "当前页面不可标注",
+
+  "toolbar.title": "标注模式",
+  "toolbar.count": "{n} 个标注",
+  "toolbar.hint": "点击页面元素进行标注",
+  "toolbar.exit": "退出",
+  "toolbar.shot": "截图",
+
+  "filter.all": "全部",
+
+  "status.open": "未处理",
+  "status.fixed_pending": "已修复待确认",
+  "status.confirmed": "已确认",
+  "status.rejected": "已拒绝",
+
+  "create.title": "新建标注",
+  "create.placeholder": "描述这个 UI 问题…",
+  "create.save": "保存",
+  "create.cancel": "取消",
+  "create.pick": "引用元素",
+  "create.pickHint": "点击页面元素以插入其选择器",
+
+  "detail.title": "标注详情",
+  "detail.markFixed": "标记为已修复",
+  "detail.confirm": "确认",
+  "detail.reject": "拒绝",
+  "detail.reopen": "重新打开",
+  "detail.edit": "编辑",
+  "detail.locate": "定位",
+  "detail.delete": "删除",
+  "detail.framework": "框架",
+  "detail.location": "定位",
+  "detail.none": "（无）",
+  "detail.editTitle": "编辑标注",
+  "detail.save": "保存",
+  "detail.back": "返回",
+
+  "reject.title": "拒绝修复结果",
+  "reject.hint": "可重新输入问题描述（可选），标注将回到「未处理」并可重新生成分析提示词。",
+  "reject.confirm": "确认拒绝并重开",
+  "reject.back": "返回",
+
+  "tooltip.degraded": "原始元素已无法定位（DOM 可能发生变化）",
+
+  "list.empty": "本页暂无标注，点击「开始标注」开始",
+  "list.emptyFiltered": "当前筛选无标注",
+  "item.history": "历史",
+  "item.noNote": "（无描述）",
+
+  "projects.others": "其他页面",
+  "projects.count": "共 {total} 条 · 待处理 {active}",
+
+  "footer.copyPage": "复制本页提示词",
+  "footer.copyAll": "复制全部",
+  "footer.download": "下载",
+  "footer.clear": "清空本页",
+
+  "settings.theme": "主题",
+  "settings.language": "语言",
+  "theme.light": "明亮",
+  "theme.dark": "深色",
+  "theme.system": "跟随系统",
+
+  "toast.located": "已定位到页面元素",
+  "toast.locateFail": "无法定位：页面未加载标注脚本",
+  "toast.copied": "提示词已复制",
+  "toast.copyFail": "复制失败",
+  "toast.downloaded": "提示词已下载",
+  "toast.noAnnotations": "本页没有标注",
+  "toast.cleared": "已清空本页",
+  "toast.confirmClear": "确定清空本页所有标注？",
+  "toast.switchFail": "切换失败",
+  "toast.shotMaking": "正在生成标注截图…",
+  "toast.shotDone": "标注截图已保存",
+  "toast.shotFail": "当前环境不支持截图",
+  "toast.refInserted": "已插入引用",
+};
