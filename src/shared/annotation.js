@@ -13,8 +13,10 @@ import { STATUS, LOCATOR_QUALITY } from "./constants.js";
  * @property {{outerHTML:string, innerText:string}} dom
  * @property {{x:number,y:number,width:number,height:number}} bbox  page-space coords
  * @property {{x:number,y:number}} fallbackPosition  page-space center coords
+ * @property {Array<{kind:string, name:string}>} uiContext  dialog/tab nesting (outer→inner)
+ * @property {{raw:object, semantic:object, a11y:object, layout:object}} layers  4-layer DOM model
  * @property {string} userNote
- * @property {{type:string, component:string, file:string, vuePath:string, vnodePath?:string}} framework
+ * @property {{type:string, component:string, file:string, vuePath:string, vnodePath?:string, domStack?:string}} framework
  * @property {"open"|"fixed_pending"|"confirmed"|"rejected"} status
  * @property {Array<{status:string, note?:string, timestamp:number}>} history
  * @property {number} timestamp
@@ -42,6 +44,8 @@ export function createAnnotation(parts) {
       x: Number(parts.fallbackPosition?.x) || 0,
       y: Number(parts.fallbackPosition?.y) || 0,
     },
+    uiContext: Array.isArray(parts.uiContext) ? parts.uiContext : [],
+    layers: parts.layers || null,
     userNote: parts.userNote || "",
     framework: {
       type: parts.framework?.type || "unknown",
@@ -49,6 +53,7 @@ export function createAnnotation(parts) {
       file: parts.framework?.file || "",
       vuePath: parts.framework?.vuePath || "",
       vnodePath: parts.framework?.vnodePath || "",
+      domStack: parts.framework?.domStack || "",
     },
     status,
     history: parts.history?.length

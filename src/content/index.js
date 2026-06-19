@@ -5,6 +5,9 @@ import { getSettings, subscribeSettings } from "../shared/settings.js";
 import { OverlayManager } from "./overlay/overlay.js";
 import { Annotator } from "./annotator.js";
 import { createBridge } from "./storage-bridge.js";
+import { createAnnotation } from "../shared/annotation.js";
+import { captureElement } from "./capture.js";
+import { probeFramework } from "./framework-bridge.js";
 
 function hasRuntime() {
   return typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.id;
@@ -16,7 +19,7 @@ class ContentApp {
     this.overlay = new OverlayManager();
     this.annotations = [];
     this.currentUrl = location.href;
-    this.settings = { theme: "system", locale: "" };
+    this.settings = { theme: "system", locale: "", showResolved: false, lockHostKeys: true };
   }
 
   async init() {
@@ -28,6 +31,7 @@ class ContentApp {
         this._mutate(() => this.bridge.setStatus(this.url(), a.id, status, note)),
       onExitMode: () => this.setMode(false),
       onCapture: () => this.captureAnnotated(),
+      onExitShot: () => this.exitWithShot(),
     });
     this.annotator = new Annotator(this.overlay, {
       onCreate: (a) => this._mutate(() => this.bridge.upsert(a)),
@@ -50,7 +54,19 @@ class ContentApp {
   async reload() {
     const page = await this.bridge.getPage(this.url());
     this.annotations = page.annotations || [];
-    this.overlay.setAnnotations(this.annotations);
+    this.overlay.setAnnotations(this._visibleAnnotations());
+  }
+
+  /**
+   * Annotations shown on the page / included in screenshots. Resolved items
+   * (fixed-pending, confirmed) are hidden unless `showResolved` is on
+   * (requirements item 4).
+   */
+  _visibleAnnotations() {
+    if (this.settings.showResolved) return this.annotations;
+    return this.annotations.filter(
+      (a) => a.status === STATUS.OPEN || a.status === STATUS.REJECTED,
+    );
   }
 
   async _mutate(fn) {
@@ -69,22 +85,28 @@ class ContentApp {
   }
 
   async setMode(enabled) {
-    if (enabled) {
-      this.annotator.enable();
-    } else if (this.annotator.isActive()) {
-      try {
-        await this.captureAnnotated();
-      } catch {
-        /* screenshot best-effort */
-      }
-      this.annotator.disable();
-    }
+    // Exiting no longer auto-captures a screenshot (requirements item 2); use
+    // the toolbar's "exit + shot" action for that.
+    if (enabled) this.annotator.enable();
+    else if (this.annotator.isActive()) this.annotator.disable();
     return this.annotator.isActive();
   }
 
-  /** Draw arrows to every annotation and capture a fallback screenshot. */
+  /** Take an annotated screenshot, then leave annotation mode. */
+  async exitWithShot() {
+    if (!this.annotator.isActive()) return this.captureAnnotated();
+    try {
+      await this.captureAnnotated();
+    } catch {
+      /* screenshot best-effort */
+    }
+    this.annotator.disable();
+    return { ok: true };
+  }
+
+  /** Draw arrows to every visible annotation and capture a fallback screenshot. */
   async captureAnnotated() {
-    if (!this.annotations.length) return { ok: false, reason: "empty" };
+    if (!this._visibleAnnotations().length) return { ok: false, reason: "empty" };
     this.overlay.toolbarBusy(t("toast.shotMaking"));
     try {
       const had = await this.overlay.renderSnapshot();
@@ -120,10 +142,14 @@ class ContentApp {
   }
 
   _applySettings(s) {
+    const prevResolved = this.settings.showResolved;
     this.settings = s;
     setLocale(resolveLocale(s.locale));
     this.overlay.applyTheme(s.theme);
     this.overlay.applyLocale();
+    if (this.annotator) this.annotator.setLockHostKeys(s.lockHostKeys);
+    // Re-filter visible markers when the show-resolved preference flips.
+    if (prevResolved !== s.showResolved) this.overlay.setAnnotations(this._visibleAnnotations());
   }
 
   _watchSettings() {
@@ -166,6 +192,8 @@ class ContentApp {
         if (a) this.overlay.locate(a);
         return { ok: !!a };
       }
+      case MSG.SNAPSHOT:
+        return await this.captureAnnotated();
       case MSG.REFRESH:
         await this.reload();
         return { ok: true };
@@ -232,9 +260,27 @@ class ContentApp {
         if (a) this.overlay.locate(a);
         return !!a;
       },
+      // Dev/test helper: create an annotation for a selector or element through
+      // the real capture pipeline (selector + xpath + bbox), then persist it.
+      add: async (target, note) => {
+        const el =
+          typeof target === "string" ? document.querySelector(target) : target;
+        if (!el) return null;
+        const parts = captureElement(el);
+        const framework = await probeFramework(el);
+        const annotation = createAnnotation({
+          ...parts,
+          url: this.url(),
+          userNote: note || "",
+          framework,
+        });
+        await this.bridge.upsert(annotation);
+        await this.reload();
+        return annotation.id;
+      },
       export: async () => {
         const page = await this.bridge.getPage(this.url());
-        return buildPrompt(page);
+        return buildPrompt(page, { locale: resolveLocale(this.settings.locale) });
       },
       clear: async () => {
         for (const a of [...this.annotations]) await this.bridge.remove(this.url(), a.id);

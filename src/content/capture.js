@@ -5,6 +5,8 @@ import {
   boxCenter,
   meaningfulClasses,
 } from "./locator.js";
+import { describeUiContext } from "./ui-context.js";
+import { captureLayers } from "./dom-model.js";
 
 const MAX_OUTER_HTML = 4000;
 const MAX_INNER_TEXT = 2000;
@@ -31,6 +33,8 @@ export function captureElement(el) {
     title: typeof document !== "undefined" ? document.title : "",
     bbox: box,
     fallbackPosition: boxCenter(box),
+    uiContext: describeUiContext(el),
+    layers: captureLayers(el),
     dom: {
       outerHTML: (el.outerHTML || "").slice(0, MAX_OUTER_HTML),
       innerText: (el.innerText || el.textContent || "").trim().slice(0, MAX_INNER_TEXT),
@@ -51,19 +55,21 @@ export function shortLabel(el) {
 
 /**
  * Build a concise, semantic reference string for an element, preferring a Vue
- * source location, then a strong/medium selector, then the element's text.
- * Used by the "reference element" picker (requirements item 13).
+ * source location, then a strong/medium selector, then the element's text. The
+ * full Vue/DOM stack is appended in parentheses so a referenced element is tied
+ * to *where* it is used, not just its component file (requirements §一/item 13).
  */
 export function describeElementRef(el, framework) {
   const { selector, quality } = analyzeSelector(el);
   const label = elementLabel(el);
+  const stack = framework && framework.domStack ? ` (${framework.domStack})` : "";
   if (framework && framework.type === "vue" && (framework.file || framework.component)) {
     const where = framework.file || framework.component;
     const comp = framework.component ? `<${framework.component}>` : "";
-    return `${comp}${comp && where ? " " : ""}${where}${label ? ` “${label}”` : ""}`.trim();
+    return `${comp}${comp && where ? " " : ""}${where}${label ? ` “${label}”` : ""}${stack}`.trim();
   }
   if (quality !== "weak" && selector) {
-    return `${selector}${label ? ` “${label}”` : ""}`;
+    return `${selector}${label ? ` “${label}”` : ""}${stack}`;
   }
-  return label || selector;
+  return `${label || selector}${stack}`.trim();
 }

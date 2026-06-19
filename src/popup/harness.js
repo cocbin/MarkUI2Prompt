@@ -26,6 +26,7 @@ const seed = [
       component: "BigScreenLib",
       file: "src/components/bigscreen/BigScreenLib.vue",
       vuePath: "App / RouterView / BigScreenEditor / BigScreenLib",
+      domStack: "<BigScreenEditor> > div.bs-editor__body > <BigScreenLib> > div.bs-lib__head > span.bs-lib__label",
     },
     dom: { outerHTML: '<span class="bs-lib__label">大屏标题</span>', innerText: "大屏标题" },
     status: STATUS.CONFIRMED,
@@ -48,6 +49,7 @@ const seed = [
       component: "PanelHeader",
       file: "src/components/bigscreen/PanelHeader.vue",
       vuePath: "App / RouterView / BigScreenEditor / PanelHeader",
+      domStack: "<BigScreenEditor> > aside.bs-editor__side > <PanelHeader>#panel-library > strong.panel-title",
     },
     dom: { outerHTML: '<strong class="panel-title">组件库</strong>', innerText: "组件库" },
     status: STATUS.OPEN,
@@ -102,7 +104,9 @@ window.chrome = {
     },
     sendMessage(_tabId, message, cb) {
       if (message.type === "SET_MODE") mode = !!message.enabled;
-      const data = message.type === "GET_MODE" || message.type === "SET_MODE" ? { enabled: mode } : { ok: true };
+      let data = { ok: true };
+      if (message.type === "GET_MODE" || message.type === "SET_MODE") data = { enabled: mode };
+      else if (message.type === "SNAPSHOT") data = { ok: true, reason: "harness" };
       cb && cb({ ok: true, data });
     },
     create({ url: u }) {

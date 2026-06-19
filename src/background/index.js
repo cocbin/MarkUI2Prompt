@@ -31,7 +31,7 @@ async function updateBadge(tabId, tabUrl) {
     const active = page.annotations.filter(
       (a) => a.status === STATUS.OPEN || a.status === STATUS.FIXED_PENDING,
     ).length;
-    await chrome.action.setBadgeBackgroundColor({ color: "#4f46e5" });
+    await chrome.action.setBadgeBackgroundColor({ color: "#3b8eff" });
     await chrome.action.setBadgeText({
       tabId,
       text: active > 0 ? String(active) : "",

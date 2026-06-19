@@ -12,7 +12,7 @@ window.addEventListener("message", (event) => {
   ) {
     return;
   }
-  let info = { type: "unknown", component: "", file: "", vuePath: "", vnodePath: "" };
+  let info = { type: "unknown", component: "", file: "", vuePath: "", vnodePath: "", domStack: "" };
   try {
     const el = document.querySelector(`[${BRIDGE.TOKEN_ATTR}="${data.token}"]`);
     if (el) info = detectFramework(el);

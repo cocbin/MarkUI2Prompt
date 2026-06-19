@@ -4,6 +4,8 @@
  * isolated-world content script. Implements requirements §四.
  */
 
+import { meaningfulClasses } from "./locator.js";
+
 function fileToName(file) {
   if (!file) return "";
   const base = String(file).split(/[\\/]/).pop() || "";
@@ -151,15 +153,81 @@ function detectHeuristic(startEl) {
   return null;
 }
 
+/** Vue 3: the component name only when `el` is that component's root element. */
+function vue3RootName(el) {
+  const inst = el.__vueParentComponent;
+  if (inst && inst.vnode && inst.vnode.el === el) return vue3Name(inst);
+  return "";
+}
+
+/** Vue 2: a mounted component exposes its instance on its root element. */
+function vue2RootName(el) {
+  const vm = el.__vue__;
+  if (!vm || !vm.$options) return "";
+  return vm.$options.name || vm.$options._componentTag || fileToName(vm.$options.__file) || "";
+}
+
+/** An id worth showing in the stack (not obviously auto-generated). */
+function isStableishId(id) {
+  return !!id && typeof id === "string" && !/\s/.test(id) && id.length <= 50 && !/\d{5,}/.test(id);
+}
+
 /**
- * @returns {{type:string, component:string, file:string, vuePath:string, vnodePath:string}}
+ * Describe one element for the DOM stack. Component roots become `<Name>`
+ * (annotated with their id/class so the *usage site* is unambiguous); other
+ * elements use `tag#id.class`. Anonymous wrappers (no name/id/class) collapse
+ * away unless they are the annotated leaf itself.
+ */
+function domSegment(el, isLeaf) {
+  let comp = vue3RootName(el) || vue2RootName(el);
+  if (comp === "Anonymous") comp = ""; // no real name → fall back to id/class
+  const id = isStableishId(el.id) ? `#${el.id}` : "";
+  const classes = meaningfulClasses(el)
+    .slice(0, 2)
+    .map((c) => `.${c}`)
+    .join("");
+  if (comp) return `<${comp}>${id || classes}`;
+  if (id || classes) return `${el.tagName.toLowerCase()}${id}${classes}`;
+  return isLeaf ? el.tagName.toLowerCase() : "";
+}
+
+/**
+ * Walk every ancestor up to the app root, naming each by its Vue component
+ * (when it is a component root) or its id/class. The same component used in
+ * different places yields a different stack, which is the whole point: the
+ * "location" must describe *which usage* of a component to edit, not just the
+ * component file. Implements requirements §一.
+ */
+export function describeDomStack(el, { max = 40 } = {}) {
+  if (!el || el.nodeType !== 1) return "";
+  const segs = [];
+  let node = el;
+  let guard = 0;
+  let isLeaf = true;
+  while (
+    node &&
+    node.nodeType === 1 &&
+    node !== document.body &&
+    node !== document.documentElement &&
+    guard < max
+  ) {
+    const seg = domSegment(node, isLeaf);
+    if (seg) segs.unshift(seg);
+    node = node.parentElement;
+    guard += 1;
+    isLeaf = false;
+  }
+  return segs.join(" > ");
+}
+
+/**
+ * @returns {{type:string, component:string, file:string, vuePath:string, vnodePath:string, domStack:string}}
  */
 export function detectFramework(el) {
   if (!el || el.nodeType !== 1) {
-    return { type: "unknown", component: "", file: "", vuePath: "", vnodePath: "" };
+    return { type: "unknown", component: "", file: "", vuePath: "", vnodePath: "", domStack: "" };
   }
-  return (
-    detectVue3(el) ||
+  const base = detectVue3(el) ||
     detectVue2(el) ||
     detectReact(el) ||
     detectHeuristic(el) || {
@@ -168,6 +236,7 @@ export function detectFramework(el) {
       file: "",
       vuePath: "",
       vnodePath: "",
-    }
-  );
+    };
+  base.domStack = describeDomStack(el);
+  return base;
 }

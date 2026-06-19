@@ -1,5 +1,5 @@
 import { MSG } from "./constants.js";
-import { buildPrompt } from "./prompt.js";
+import { buildPrompt, buildDomDetails } from "./prompt.js";
 
 /**
  * Storage message router shared by the background service worker and the popup
@@ -31,13 +31,44 @@ export function createMessageRouter(store) {
       await store.clearPage(url);
       return { data: { ok: true }, changedUrl: url };
     },
-    async [MSG.EXPORT_PAGE]({ url }) {
+    async [MSG.EXPORT_PAGE]({ url, locale }) {
       const page = await store.getPage(url);
-      return { data: { prompt: buildPrompt(page) } };
+      return { data: { prompt: buildPrompt(page, { locale }), page } };
     },
-    async [MSG.EXPORT_ALL]() {
+    async [MSG.EXPORT_ALL]({ locale } = {}) {
       const pages = await store.listPages();
-      return { data: { prompt: buildPrompt(pages) } };
+      const withData = pages.filter((p) => p.annotations && p.annotations.length);
+      return {
+        data: {
+          prompt: buildPrompt(pages, { locale }),
+          pages: withData.map((p) => ({
+            url: p.url,
+            title: p.title,
+            prompt: buildPrompt(p, { locale }),
+          })),
+        },
+      };
+    },
+    async [MSG.EXPORT_PAGE_FULL]({ url, locale, domFile }) {
+      const page = await store.getPage(url);
+      return {
+        data: {
+          prompt: buildPrompt(page, { locale, domFile }),
+          dom: buildDomDetails(page, { locale }),
+          page,
+        },
+      };
+    },
+    async [MSG.EXPORT_ALL_FULL]({ locale, domFile } = {}) {
+      const pages = await store.listPages();
+      const withData = pages.filter((p) => p.annotations && p.annotations.length);
+      return {
+        data: {
+          prompt: buildPrompt(pages, { locale, domFile }),
+          dom: buildDomDetails(pages, { locale }),
+          pages: withData.map((p) => ({ url: p.url, title: p.title })),
+        },
+      };
     },
   };
 

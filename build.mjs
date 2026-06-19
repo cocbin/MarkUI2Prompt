@@ -15,13 +15,16 @@ const entries = {
   popup: "src/popup/popup.js",
 };
 
-/** Copy static assets (manifest, popup html/css, icons) into dist. */
+/** Copy static assets (manifest, popup html/css, icons, guide images) into dist. */
 async function copyStatic() {
   await cp(resolve(root, "public/manifest.json"), resolve(outdir, "manifest.json"));
   await cp(resolve(root, "src/popup/popup.html"), resolve(outdir, "popup.html"));
   await cp(resolve(root, "src/popup/popup.css"), resolve(outdir, "popup.css"));
   if (existsSync(resolve(root, "icons"))) {
     await cp(resolve(root, "icons"), resolve(outdir, "icons"), { recursive: true });
+  }
+  if (existsSync(resolve(root, "public/guide"))) {
+    await cp(resolve(root, "public/guide"), resolve(outdir, "guide"), { recursive: true });
   }
 }
 

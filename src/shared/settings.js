@@ -4,7 +4,18 @@
  * the injected/page/harness contexts so the engine stays fully testable.
  */
 const SETTINGS_KEY = "ui2prompt:settings";
-export const DEFAULT_SETTINGS = { theme: "system", locale: "" };
+export const DEFAULT_SETTINGS = {
+  theme: "system",
+  locale: "",
+  // When false (default), resolved annotations (fixed-pending / confirmed) are
+  // hidden from the in-page overlay and excluded from screenshots. Toggled via
+  // the popup settings dialog (requirements item 4).
+  showResolved: false,
+  // When true (default), the host page's own keyboard shortcuts are suppressed
+  // while annotating in element-select mode, so stray keys (Delete, Esc, app
+  // hotkeys…) cannot mutate the page underneath the annotation overlay.
+  lockHostKeys: true,
+};
 
 function hasChromeStorage() {
   return (

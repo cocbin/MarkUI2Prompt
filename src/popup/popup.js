@@ -1,15 +1,12 @@
-import { MSG, normalizeUrl } from "../shared/constants.js";
+import { MSG, STATUS, normalizeUrl } from "../shared/constants.js";
 import { t, setLocale, resolveLocale, LOCALE_NAMES } from "../shared/i18n.js";
-import {
-  getSettings,
-  setSettings,
-  subscribeSettings,
-  resolveTheme,
-} from "../shared/settings.js";
+import { getSettings, setSettings, subscribeSettings, resolveTheme } from "../shared/settings.js";
 import { buildThemeCss } from "../shared/theme.js";
 import { icon } from "../shared/icons.js";
 import { Api, getActiveTab } from "./api.js";
 import { countByStatus, renderFilters, renderList, renderProjects } from "./render.js";
+import { openMenu, closeMenu } from "./menus.js";
+import { openSettings, openGuide } from "./dialogs.js";
 
 // Inject design tokens once (single source of truth shared with the overlay).
 (function injectTokens() {
@@ -22,24 +19,33 @@ const state = {
   tabId: null,
   url: "",
   annotations: [],
-  filter: "all",
+  filter: STATUS.OPEN, // default to the "Open" tab (requirements item 4)
   editing: null,
   modeAvailable: false,
-  settings: { theme: "system", locale: "" },
+  settings: { theme: "system", locale: "", showResolved: false, lockHostKeys: true },
 };
 
 const dom = {
+  app: document.getElementById("app"),
   tagline: document.getElementById("tagline"),
-  langSel: document.getElementById("langSel"),
+  langBtn: document.getElementById("langBtn"),
   themeBtn: document.getElementById("themeBtn"),
+  settingsBtn: document.getElementById("settingsBtn"),
+  helpBtn: document.getElementById("helpBtn"),
   modeBtn: document.getElementById("modeBtn"),
   filters: document.getElementById("filters"),
   list: document.getElementById("list"),
   projects: document.getElementById("projects"),
-  exportPage: document.getElementById("exportPage"),
+  copyPage: document.getElementById("copyPage"),
+  copyAll: document.getElementById("copyAll"),
   downloadPage: document.getElementById("downloadPage"),
-  exportAll: document.getElementById("exportAll"),
+  downloadAll: document.getElementById("downloadAll"),
+  downloadFull: document.getElementById("downloadFull"),
+  screenshot: document.getElementById("screenshot"),
   clearPage: document.getElementById("clearPage"),
+  menu: document.getElementById("menu"),
+  settingsDialog: document.getElementById("settingsDialog"),
+  guideDialog: document.getElementById("guideDialog"),
   toast: document.getElementById("toast"),
 };
 
@@ -66,56 +72,82 @@ async function copy(text) {
   }
 }
 
-function download(text) {
-  let host = "page";
+function slugFromUrl(url) {
   try {
-    host = new URL(state.url).hostname || "page";
+    const u = new URL(url);
+    const path = `${u.hostname}${u.pathname}${u.hash}`
+      .replace(/[^\w\u4e00-\u9fa5]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return path.slice(0, 60) || "page";
   } catch {
-    /* keep default */
+    return "page";
   }
-  const date = new Date().toISOString().slice(0, 10);
+}
+
+function downloadText(text, name) {
   const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `ui2prompt-${host}-${date}.md`;
+  a.download = name;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-const handlers = {
-  onLocate: async (id) => {
-    try {
-      await Api.locate(state.tabId, id);
-      toast(t("toast.located"));
-    } catch {
-      toast(t("toast.locateFail"));
-    }
-  },
-  onStatus: async (id, status) => {
-    await Api.setStatus(state.url, id, status);
-    await refresh();
-  },
-  onDelete: async (id) => {
-    await Api.remove(state.url, id);
-    await refresh();
-  },
-  onEdit: (id) => {
-    state.editing = id;
-    render();
-  },
-  onEditCancel: () => {
-    state.editing = null;
-    render();
-  },
-  onEditSave: async (id, note) => {
-    await Api.updateNote(state.url, id, note);
-    state.editing = null;
-    await refresh();
-  },
-};
+function currentLocale() {
+  return resolveLocale(state.settings.locale);
+}
+
+// ---- mode button --------------------------------------------------------
+
+function setModeButton(enabled) {
+  dom.modeBtn.classList.toggle("active", enabled);
+  if (!state.modeAvailable) {
+    dom.modeBtn.innerHTML = `<span></span>`;
+    dom.modeBtn.querySelector("span").textContent = t("mode.unavailable");
+    return;
+  }
+  const ic = enabled ? icon("square", { size: 15 }) : icon("pointer", { size: 15 });
+  dom.modeBtn.innerHTML = `${ic}<span></span>`;
+  dom.modeBtn.querySelector("span").textContent = enabled ? t("mode.stop") : t("mode.start");
+}
+
+// ---- theme / locale -----------------------------------------------------
+
+function applyTheme() {
+  const resolved = resolveTheme(state.settings.theme);
+  document.documentElement.dataset.theme = resolved;
+  dom.themeBtn.innerHTML = icon(resolved === "dark" ? "moon" : "sun", { size: 16 });
+  dom.themeBtn.title = `${t("settings.theme")}: ${t(`theme.${resolved}`)}`;
+}
+
+function applyStaticLabels() {
+  dom.tagline.textContent = t("tagline");
+  dom.langBtn.innerHTML = icon("languages", { size: 16 });
+  dom.langBtn.title = t("settings.language");
+  dom.settingsBtn.innerHTML = icon("gear", { size: 16 });
+  dom.settingsBtn.title = t("settings.title");
+  dom.helpBtn.innerHTML = icon("help", { size: 16 });
+  dom.helpBtn.title = t("guide.open");
+  setModeButton(dom.modeBtn.classList.contains("active"));
+
+  const setBtn = (node, iconName, key, trailingCaret) => {
+    const caret = trailingCaret ? icon("chevronDown", { size: 13, cls: "caret" }) : "";
+    node.innerHTML = `${icon(iconName, { size: 14 })}<span></span>${caret}`;
+    node.querySelector("span").textContent = t(key);
+  };
+  setBtn(dom.copyPage, "copy", "footer.copyPage");
+  setBtn(dom.copyAll, "copy", "footer.copyAll");
+  setBtn(dom.downloadPage, "download", "footer.downloadPage");
+  setBtn(dom.downloadAll, "download", "footer.downloadAll", true);
+  setBtn(dom.screenshot, "camera", "footer.screenshot");
+  setBtn(dom.clearPage, "trash", "footer.clear");
+  setBtn(dom.downloadFull, "layers", "footer.downloadFull", true);
+}
+
+// ---- rendering ----------------------------------------------------------
 
 function render() {
   const counts = countByStatus(state.annotations);
@@ -140,54 +172,41 @@ async function refresh() {
   }
 }
 
-function setModeButton(enabled) {
-  dom.modeBtn.classList.toggle("active", enabled);
-  if (!state.modeAvailable) {
-    dom.modeBtn.innerHTML = `<span></span>`;
-    dom.modeBtn.querySelector("span").textContent = t("mode.unavailable");
-    return;
-  }
-  const ic = enabled ? icon("square", { size: 15 }) : icon("pointer", { size: 15 });
-  dom.modeBtn.innerHTML = `${ic}<span></span>`;
-  dom.modeBtn.querySelector("span").textContent = enabled ? t("mode.stop") : t("mode.start");
-}
+const handlers = {
+  onLocate: async (id) => {
+    try {
+      await Api.locate(state.tabId, id);
+      toast(t("toast.located"));
+    } catch {
+      toast(t("toast.locateFail"));
+    }
+  },
+  onStatus: async (id, status) => {
+    await Api.setStatus(state.url, id, status);
+    await refresh();
+  },
+  onDelete: async (id) => {
+    if (!confirm(t("confirm.deleteHint"))) return;
+    await Api.remove(state.url, id);
+    await refresh();
+    toast(t("toast.deleted"));
+  },
+  onEdit: (id) => {
+    state.editing = id;
+    render();
+  },
+  onEditCancel: () => {
+    state.editing = null;
+    render();
+  },
+  onEditSave: async (id, note) => {
+    await Api.updateNote(state.url, id, note);
+    state.editing = null;
+    await refresh();
+  },
+};
 
-function applyTheme() {
-  const resolved = resolveTheme(state.settings.theme);
-  document.documentElement.dataset.theme = resolved;
-  dom.themeBtn.innerHTML = icon(resolved === "dark" ? "moon" : "sun", { size: 16 });
-  dom.themeBtn.title = `${t("settings.theme")}: ${t(`theme.${resolved}`)}`;
-}
-
-function fillLangSelect() {
-  dom.langSel.innerHTML = "";
-  const auto = document.createElement("option");
-  auto.value = "";
-  auto.textContent = t("theme.system");
-  dom.langSel.appendChild(auto);
-  for (const [code, name] of Object.entries(LOCALE_NAMES)) {
-    const opt = document.createElement("option");
-    opt.value = code;
-    opt.textContent = name;
-    dom.langSel.appendChild(opt);
-  }
-  dom.langSel.value = state.settings.locale || "";
-}
-
-function applyStaticLabels() {
-  dom.tagline.textContent = t("tagline");
-  dom.langSel.title = t("settings.language");
-  setModeButton(dom.modeBtn.classList.contains("active"));
-  const setBtn = (node, iconName, key, cls) => {
-    node.innerHTML = `${icon(iconName, { size: 14 })}<span></span>`;
-    node.querySelector("span").textContent = t(key);
-    if (cls) node.classList.add(...cls.split(" "));
-  };
-  setBtn(dom.exportPage, "copy", "footer.copyPage");
-  setBtn(dom.downloadPage, "download", "footer.download");
-  setBtn(dom.exportAll, "copy", "footer.copyAll");
-  setBtn(dom.clearPage, "trash", "footer.clear");
-}
+// ---- mode init ----------------------------------------------------------
 
 async function initMode() {
   try {
@@ -200,6 +219,117 @@ async function initMode() {
     setModeButton(false);
   }
 }
+
+// ---- language menu ------------------------------------------------------
+
+function openLangMenu() {
+  const items = [
+    {
+      icon: "globe",
+      label: t("theme.system"),
+      active: !state.settings.locale,
+      onClick: () => changeLocale(""),
+    },
+    ...Object.entries(LOCALE_NAMES).map(([code, name]) => ({
+      label: name,
+      active: state.settings.locale === code,
+      onClick: () => changeLocale(code),
+    })),
+  ];
+  openMenu(dom.menu, dom.langBtn, items, { title: t("settings.language") });
+}
+
+async function changeLocale(code) {
+  state.settings = await setSettings({ locale: code });
+  setLocale(currentLocale());
+  applyStaticLabels();
+  applyTheme();
+  render();
+  refresh();
+}
+
+// ---- download all menu --------------------------------------------------
+
+function openDownloadAllMenu() {
+  const items = [
+    { icon: "copy", label: t("download.merge"), onClick: () => downloadAll(false) },
+    { icon: "download", label: t("download.split"), onClick: () => downloadAll(true) },
+  ];
+  openMenu(dom.menu, dom.downloadAll, items, { title: t("download.allTitle") });
+}
+
+async function downloadAll(split) {
+  const date = new Date().toISOString().slice(0, 10);
+  const res = await Api.exportAll(currentLocale());
+  const pages = (res && res.pages) || [];
+  if (!pages.length) return toast(t("toast.noAnnotations"));
+  if (!split) {
+    downloadText(res.prompt, `ui2prompt-all-${date}.md`);
+    toast(t("toast.downloaded"));
+    return;
+  }
+  pages.forEach((p, i) => {
+    setTimeout(() => downloadText(p.prompt, `ui2prompt-${slugFromUrl(p.url)}-${date}.md`), i * 250);
+  });
+  toast(t("toast.downloaded"));
+}
+
+// ---- download full (prompt + companion 4-layer DOM file) ----------------
+
+function openDownloadFullMenu() {
+  const items = [
+    { icon: "download", label: t("download.fullCurrent"), onClick: () => downloadFull(false) },
+    { icon: "layers", label: t("download.fullAll"), onClick: () => downloadFull(true) },
+  ];
+  openMenu(dom.menu, dom.downloadFull, items, { title: t("download.fullTitle") });
+}
+
+async function downloadFull(all) {
+  const date = new Date().toISOString().slice(0, 10);
+  const base = all ? `ui2prompt-all-${date}` : `ui2prompt-${slugFromUrl(state.url)}-${date}`;
+  const domFile = `${base}.dom.md`;
+  const res = all
+    ? await Api.exportAllFull(currentLocale(), domFile)
+    : await Api.exportPageFull(state.url, currentLocale(), domFile);
+  const pages = res && res.pages;
+  const hasData = all ? pages && pages.length : res && res.page && (res.page.annotations || []).length;
+  if (!hasData) return toast(t("toast.noAnnotations"));
+  downloadText(res.prompt, `${base}.md`);
+  setTimeout(() => downloadText(res.dom, domFile), 250);
+  toast(t("toast.fullDownloaded"));
+}
+
+// ---- settings / guide dialogs ------------------------------------------
+
+function showSettings() {
+  closeMenu();
+  openSettings(dom.settingsDialog, {
+    theme: state.settings.theme,
+    showResolved: !!state.settings.showResolved,
+    lockHostKeys: state.settings.lockHostKeys !== false,
+    onSetTheme: async (v) => {
+      state.settings = await setSettings({ theme: v });
+      applyTheme();
+    },
+    onToggleResolved: async (v) => {
+      state.settings = await setSettings({ showResolved: v });
+    },
+    onToggleLockKeys: async (v) => {
+      state.settings = await setSettings({ lockHostKeys: v });
+    },
+    onClose: () => {},
+  });
+}
+
+function showGuide() {
+  closeMenu();
+  document.body.classList.add("wide");
+  openGuide(dom.guideDialog, {
+    onClose: () => document.body.classList.remove("wide"),
+  });
+}
+
+// ---- events -------------------------------------------------------------
 
 function wireEvents() {
   dom.modeBtn.onclick = async () => {
@@ -214,34 +344,47 @@ function wireEvents() {
     }
   };
 
+  dom.langBtn.onclick = openLangMenu;
+
   dom.themeBtn.onclick = async () => {
     const resolved = resolveTheme(state.settings.theme);
     state.settings = await setSettings({ theme: resolved === "dark" ? "light" : "dark" });
     applyTheme();
   };
 
-  dom.langSel.onchange = async () => {
-    state.settings = await setSettings({ locale: dom.langSel.value });
-    setLocale(resolveLocale(state.settings.locale));
-    applyStaticLabels();
-    render();
-    refresh();
-  };
+  dom.settingsBtn.onclick = showSettings;
+  dom.helpBtn.onclick = showGuide;
 
-  dom.exportPage.onclick = async () => {
-    const { prompt } = await Api.exportPage(state.url);
+  dom.copyPage.onclick = async () => {
+    if (!state.annotations.length) return toast(t("toast.noAnnotations"));
+    const { prompt } = await Api.exportPage(state.url, currentLocale());
+    toast((await copy(prompt)) ? t("toast.copied") : t("toast.copyFail"));
+  };
+  dom.copyAll.onclick = async () => {
+    const { prompt, pages } = await Api.exportAll(currentLocale());
+    if (!pages || !pages.length) return toast(t("toast.noAnnotations"));
     toast((await copy(prompt)) ? t("toast.copied") : t("toast.copyFail"));
   };
   dom.downloadPage.onclick = async () => {
     if (!state.annotations.length) return toast(t("toast.noAnnotations"));
-    const { prompt } = await Api.exportPage(state.url);
-    download(prompt);
+    const { prompt } = await Api.exportPage(state.url, currentLocale());
+    const date = new Date().toISOString().slice(0, 10);
+    downloadText(prompt, `ui2prompt-${slugFromUrl(state.url)}-${date}.md`);
     toast(t("toast.downloaded"));
   };
-  dom.exportAll.onclick = async () => {
-    const { prompt } = await Api.exportAll();
-    toast((await copy(prompt)) ? t("toast.copied") : t("toast.copyFail"));
+  dom.downloadAll.onclick = openDownloadAllMenu;
+  dom.downloadFull.onclick = openDownloadFullMenu;
+
+  dom.screenshot.onclick = async () => {
+    if (!state.annotations.length) return toast(t("toast.noAnnotations"));
+    try {
+      const res = await Api.snapshot(state.tabId);
+      toast(res && res.ok ? t("toast.shotDone") : t("toast.shotFail"));
+    } catch {
+      toast(t("toast.shotFail"));
+    }
   };
+
   dom.clearPage.onclick = async () => {
     if (!state.annotations.length) return toast(t("toast.noAnnotations"));
     if (!confirm(t("toast.confirmClear"))) return;
@@ -259,8 +402,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 async function init() {
   state.settings = await getSettings();
-  setLocale(resolveLocale(state.settings.locale));
-  fillLangSelect();
+  setLocale(currentLocale());
   applyTheme();
   applyStaticLabels();
 
@@ -274,8 +416,7 @@ async function init() {
   }
   subscribeSettings((s) => {
     state.settings = s;
-    setLocale(resolveLocale(s.locale));
-    fillLangSelect();
+    setLocale(currentLocale());
     applyTheme();
     applyStaticLabels();
     render();

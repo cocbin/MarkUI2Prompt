@@ -17,6 +17,8 @@ export class OverlayManager {
     this.running = false;
     this.raf = 0;
     this.theme = "system";
+    this.annotationActive = false;
+    this.modeHandlers = {};
     this.tick = this.tick.bind(this);
   }
 
@@ -49,11 +51,15 @@ export class OverlayManager {
     this.highlight = highlight;
     this.markersLayer = markersLayer;
     this.editor = new EditorPopover(layer);
+    this.editor.onRequestClose = () => this.closePopover();
     this.toolbar = new Toolbar(layer);
     this.snapshot = new SnapshotLayer(layer);
     this.toolbar.setHandlers({
       onExit: () => this.actions.onExitMode && this.actions.onExitMode(),
       onShot: () => this.actions.onCapture && this.actions.onCapture(),
+      onExitShot: () => this.actions.onExitShot && this.actions.onExitShot(),
+      onSelectMode: () => this.modeHandlers.onSelectMode && this.modeHandlers.onSelectMode(),
+      onNormalMode: () => this.modeHandlers.onNormalMode && this.modeHandlers.onNormalMode(),
     });
 
     this._installGlobalClose();
@@ -96,6 +102,21 @@ export class OverlayManager {
 
   toolbarBusy(text) {
     this.toolbar && this.toolbar.setBusy(text);
+  }
+
+  /** Register the select/normal sub-mode switch callbacks (from the annotator). */
+  setModeHandlers(handlers) {
+    this.modeHandlers = handlers || {};
+  }
+
+  /** Reflect the active sub-mode in the toolbar. */
+  setToolbarMode(mode) {
+    this.toolbar && this.toolbar.setMode(mode);
+  }
+
+  /** While annotation mode is on, the annotator owns keyboard control. */
+  setAnnotationActive(value) {
+    this.annotationActive = !!value;
   }
 
   // ---- markers -----------------------------------------------------------
@@ -333,8 +354,19 @@ export class OverlayManager {
       },
       true,
     );
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && this.isPopoverOpen()) this.closePopover();
-    });
+    // Popover keyboard control when annotation mode is OFF (e.g. viewing a
+    // marker's detail by clicking its dot). While annotation mode is ON, the
+    // annotator's window-level guard owns the keyboard, so we defer to it.
+    document.addEventListener(
+      "keydown",
+      (e) => {
+        if (this.annotationActive || this.picking || !this.isPopoverOpen()) return;
+        if (this.editor.handleKey(e)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      },
+      true,
+    );
   }
 }
