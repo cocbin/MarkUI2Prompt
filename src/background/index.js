@@ -2,6 +2,10 @@ import { MSG, STATUS, normalizeUrl } from "../shared/constants.js";
 import { chromeBackend } from "../shared/backends.js";
 import { createStore } from "../shared/store.js";
 import { createMessageRouter } from "../shared/router.js";
+import { getSettings } from "../shared/settings.js";
+import { resolveLocale } from "../shared/i18n.js";
+import { buildLoopTask, buildLoopPrompt } from "../shared/loop.js";
+import { Broker, removePageTasks } from "./loop.js";
 
 const store = createStore(chromeBackend());
 const router = createMessageRouter(store);
@@ -70,6 +74,82 @@ async function captureAndDownload(message, sender) {
   return { ok: true, filename };
 }
 
+// ---- loop mode bridge ---------------------------------------------------
+
+const LOOP_TYPES = new Set([
+  MSG.LOOP_HEALTH,
+  MSG.LOOP_STATE,
+  MSG.LOOP_PUSH,
+  MSG.LOOP_ANSWER,
+  MSG.LOOP_RESET,
+  MSG.LOOP_PROMPT,
+]);
+
+async function loopLocale() {
+  const settings = await getSettings();
+  return { settings, locale: resolveLocale(settings.locale) };
+}
+
+async function handleLoop(message) {
+  const { settings, locale } = await loopLocale();
+  const url = settings.brokerUrl;
+  switch (message.type) {
+    case MSG.LOOP_HEALTH:
+      return Broker.health(url);
+    case MSG.LOOP_STATE:
+      return Broker.state(url);
+    case MSG.LOOP_PROMPT:
+      return { prompt: buildLoopPrompt({ locale }), brokerUrl: url };
+    case MSG.LOOP_ANSWER:
+      return Broker.answer(url, message.questionId, message.answer);
+    case MSG.LOOP_RESET:
+      return Broker.reset(url);
+    case MSG.LOOP_PUSH: {
+      const pages = await store.listPages();
+      const tasks = [];
+      for (const page of pages) {
+        for (const a of page.annotations) {
+          if (a.status === STATUS.OPEN) tasks.push(buildLoopTask(a, { locale }));
+        }
+      }
+      await Promise.all(tasks.map((task) => Broker.pushTask(url, task).catch(() => {})));
+      return { pushed: tasks.length };
+    }
+    default:
+      throw new Error(`unknown loop message ${message.type}`);
+  }
+}
+
+/**
+ * Mirror human-side storage changes into the broker when loop mode is on:
+ * new/edited annotations become tasks; confirm/reject becomes a verdict; a
+ * deleted annotation or cleared page removes its task(s).
+ */
+async function syncLoopSideEffects(message, data) {
+  const { settings, locale } = await loopLocale();
+  if (!settings.loopEnabled) return;
+  const url = settings.brokerUrl;
+  try {
+    if (message.type === MSG.UPSERT_ANNOTATION && data) {
+      if (data.status === STATUS.OPEN || data.status === STATUS.FIXED_PENDING) {
+        await Broker.pushTask(url, buildLoopTask(data, { locale }));
+      }
+    } else if (message.type === MSG.SET_STATUS && data) {
+      if (data.status === STATUS.CONFIRMED) await Broker.verdict(url, data.id, "confirm");
+      // Reopen (OPEN) and Reject (REJECTED) both return the task to the queue,
+      // unlocked, so an agent can pick it up again.
+      else if (data.status === STATUS.OPEN || data.status === STATUS.REJECTED)
+        await Broker.verdict(url, data.id, "reject");
+    } else if (message.type === MSG.DELETE_ANNOTATION) {
+      await Broker.removeTask(url, message.id);
+    } else if (message.type === MSG.CLEAR_PAGE) {
+      await removePageTasks(url, normalizeUrl(message.url));
+    }
+  } catch {
+    /* broker offline → human side keeps working; resync via LOOP_PUSH later */
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message && message.type === MSG.CAPTURE_TAB) {
     captureAndDownload(message, sender)
@@ -77,11 +157,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((error) => sendResponse({ ok: false, error: String(error && error.message) }));
     return true;
   }
+  if (message && LOOP_TYPES.has(message.type)) {
+    handleLoop(message)
+      .then((data) => sendResponse({ ok: true, data }))
+      .catch((error) => sendResponse({ ok: false, error: String((error && error.message) || error) }));
+    return true;
+  }
   if (!message || !router.has(message.type)) return false;
   router
     .handle(message)
     .then((res) => {
       if (res.changedUrl) broadcastChanged(res.changedUrl);
+      syncLoopSideEffects(message, res.data);
       sendResponse({ ok: true, data: res.data });
     })
     .catch((error) => {

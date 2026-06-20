@@ -37,9 +37,17 @@ jobs:
           cd ..
           ls -lh ui2prompt-dist.zip
 
+      - name: Build loop skill
+        run: |
+          npm run skill
+          ls -lh dist-skill/ui2prompt-skill.zip dist-skill/install.sh
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: ui2prompt-dist.zip
+          files: |
+            ui2prompt-dist.zip
+            dist-skill/ui2prompt-skill.zip
+            dist-skill/install.sh
           generate_release_notes: true
           fail_on_unmatched_files: true

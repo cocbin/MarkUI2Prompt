@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acme Console — Account settings (UI2Prompt demo)</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand__dot"></span>
+          <span class="brand__name">Acme Console</span>
+        </div>
+        <nav class="nav">
+          <a class="nav__item">Dashboard</a>
+          <a class="nav__item">Projects</a>
+          <a class="nav__item nav__item--active">Settings</a>
+          <a class="nav__item">Members</a>
+          <a class="nav__item">Billing</a>
+        </nav>
+        <div class="sidebar__foot">
+          <div class="avatar avatar--sm">JD</div>
+          <div class="who">
+            <div class="who__name">Jane Doe</div>
+            <div class="who__mail">jane@acme.io</div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-head">
+          <h1 class="page-head__title">Account settings</h1>
+          <p class="page-head__sub">Manage your profile, notifications, billing and security.</p>
+        </header>
+
+        <!-- Custom BEM tab widget (block = "settings"): headers toggle `.is-active`,
+             panes show/hide via `.is-active`. Mirrors hand-rolled component libs. -->
+        <section class="settings" aria-label="Account settings">
+          <nav class="settings__tabs" role="tablist">
+            <button class="settings__tab is-active" data-tab="profile" role="tab">Profile</button>
+            <button class="settings__tab" data-tab="notifications" role="tab">Notifications</button>
+            <button class="settings__tab" data-tab="billing" role="tab">Billing</button>
+            <button class="settings__tab" data-tab="security" role="tab">Security</button>
+          </nav>
+
+          <!-- ===================== Profile ===================== -->
+          <div class="settings__pane is-active" data-pane="profile" role="tabpanel">
+            <div class="card">
+              <h2 class="card__title">Public profile</h2>
+              <p class="card__hint">This information is shown to other members of your workspace.</p>
+
+              <div class="profile-head">
+                <div class="avatar avatar--lg">JD</div>
+                <div class="profile-head__meta">
+                  <div class="profile-head__name">Jane Doe</div>
+                  <div class="profile-head__role">Owner · Acme Inc.</div>
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="field__label">Display name</label>
+                <input class="input" type="text" value="Jane Doe" />
+              </div>
+              <div class="field">
+                <label class="field__label">Bio</label>
+                <textarea class="input" rows="3">Building delightful developer tools.</textarea>
+              </div>
+
+              <div class="card__actions">
+                <button class="btn btn--ghost">Cancel</button>
+                <button class="btn btn--primary" id="saveProfile">Save changes</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===================== Notifications ===================== -->
+          <div class="settings__pane" data-pane="notifications" role="tabpanel">
+            <div class="card">
+              <h2 class="card__title">Notifcations</h2>
+              <p class="card__hint">Choose what you want to hear about. We never spam.</p>
+
+              <ul class="toggle-list">
+                <li class="toggle-row">
+                  <div class="toggle-row__text">
+                    <div class="toggle-row__title">Product updates</div>
+                    <div class="toggle-row__sub">New features and improvements.</div>
+                  </div>
+                  <label class="switch"><input type="checkbox" checked /><span class="switch__slider"></span></label>
+                </li>
+                <li class="toggle-row">
+                  <div class="toggle-row__text">
+                    <div class="toggle-row__title">Security alerts</div>
+                    <div class="toggle-row__sub">Sign-ins and password changes.</div>
+                  </div>
+                  <label class="switch"><input type="checkbox" checked /><span class="switch__slider"></span></label>
+                </li>
+                <li class="toggle-row">
+                  <div class="toggle-row__text">
+                    <div class="toggle-row__title">Weekly digest</div>
+                    <div class="toggle-row__sub">A summary of your workspace activity.</div>
+                  </div>
+                  <label class="switch"><input type="checkbox" /><span class="switch__slider"></span></label>
+                </li>
+              </ul>
+
+              <div class="card__actions">
+                <button class="btn btn--primary">Save preferences</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===================== Billing ===================== -->
+          <div class="settings__pane" data-pane="billing" role="tabpanel">
+            <div class="card">
+              <h2 class="card__title">Plan &amp; billing</h2>
+              <p class="card__hint">You are currently on the Starter plan.</p>
+
+              <div class="plan">
+                <div class="plan__row">
+                  <span class="plan__name">Starter</span>
+                  <span class="plan__price">$0<span class="plan__per">/mo</span></span>
+                </div>
+                <ul class="plan__feats">
+                  <li>Up to 3 projects</li>
+                  <li>Community support</li>
+                  <li>1 GB storage</li>
+                </ul>
+              </div>
+
+              <div class="card__actions">
+                <button class="btn btn--ghost">Compare plans</button>
+                <button class="btn btn--danger" id="upgrade">Upgrade plan</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===================== Security ===================== -->
+          <div class="settings__pane" data-pane="security" role="tabpanel">
+            <div class="card">
+              <h2 class="card__title">Password &amp; security</h2>
+              <p class="card__hint">Keep your account secure with a strong password and 2FA.</p>
+
+              <div class="field">
+                <label class="field__label">Current password</label>
+                <input class="input" type="password" placeholder="••••••••" />
+              </div>
+              <div class="field">
+                <label class="field__label">New password <span class="req">*</span></label>
+                <input class="input" type="password" placeholder="At least 12 characters" />
+              </div>
+
+              <div class="twofa">
+                <div class="twofa__text">
+                  <div class="twofa__title">Two-factor authentication</div>
+                  <div class="twofa__sub">Add an extra layer of security to your account.</div>
+                </div>
+                <button class="btn btn--primary">Enable 2FA</button>
+              </div>
+
+              <div class="card__actions">
+                <button class="btn btn--primary">Update password</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

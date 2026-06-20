@@ -1,6 +1,11 @@
 node_modules/
 dist/
+dist-skill/
 icons/
 ui2prompt-dist.zip
 *.log
 .DS_Store
+.ui2prompt-loop/
+.ui2prompt-test/
+.ui2prompt/
+demo/_tabfix.bundle.js

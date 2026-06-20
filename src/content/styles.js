@@ -106,6 +106,22 @@ ${TOKENS}
 .tooltip .t-meta { margin-top: 5px; color: var(--u-text-2); font-size: 11px; font-family: var(--u-mono); word-break: break-all; }
 .tooltip .t-degraded { margin-top: 5px; color: var(--u-warning); font-size: 11px; }
 .tooltip .t-degraded:empty { display: none; }
+.tooltip .t-loop { margin-top: 4px; font-size: 11px; font-weight: 700; }
+.tooltip .t-loop:empty { display: none; }
+
+/* Loop-mode agent progress rings (requirement: see agents working live). */
+.marker.loop-in_progress .dot { box-shadow: 0 0 0 3px rgba(59, 142, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.35); animation: lp-pulse 1.4s ease-in-out infinite; }
+.marker.loop-ai_fixed .dot { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.65), 0 2px 6px rgba(0, 0, 0, 0.35); }
+.marker.loop-ai_reviewed .dot { box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.65), 0 2px 6px rgba(0, 0, 0, 0.35); }
+.marker.loop-in_progress .t-loop { color: #3b8eff; }
+.marker.loop-ai_fixed .t-loop { color: var(--u-warning); }
+.marker.loop-ai_reviewed .t-loop { color: #8b5cf6; }
+/* Hidden when the recorded tab is not the active one (tab-aware display fix). */
+.marker.off-tab { display: none !important; }
+@keyframes lp-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(59, 142, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(59, 142, 255, 0.18), 0 2px 6px rgba(0, 0, 0, 0.35); }
+}
 
 /* ---- popover (editor) ---- */
 .popover {

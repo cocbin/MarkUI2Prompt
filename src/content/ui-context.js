@@ -12,7 +12,7 @@
 
 const MAX_NAME = 60;
 
-const DIALOG_SEL = [
+export const DIALOG_SEL = [
   '[role="dialog"]',
   '[role="alertdialog"]',
   '[aria-modal="true"]',
@@ -36,7 +36,7 @@ const DIALOG_SEL = [
 
 // Tab *containers* that wrap both the tab headers and the panels, so they are
 // ancestors of the annotated element.
-const TABS_SEL = [
+export const TABS_SEL = [
   ".el-tabs",
   ".ant-tabs",
   ".van-tabs",
@@ -46,7 +46,7 @@ const TABS_SEL = [
   ".t-tabs",
 ].join(",");
 
-function clean(text) {
+export function clean(text) {
   const s = (text || "").replace(/\s+/g, " ").trim();
   return s.length > MAX_NAME ? `${s.slice(0, MAX_NAME)}…` : s;
 }
@@ -55,7 +55,7 @@ function clean(text) {
  * Normalise a tab label: drop a leading step index ("02 ", "01.") and a trailing
  * badge count ("Headers 1" → "Headers") so the context reads like a human label.
  */
-function cleanTabLabel(text) {
+export function cleanTabLabel(text) {
   let s = clean(text);
   s = s.replace(/^(?:\d{2}[.):、:\s]*|\d{1,2}[.):、:\s]+)(?=\S)/, "");
   const m = s.match(/^(.*\D)\s*\d{1,3}$/);
@@ -71,7 +71,7 @@ function matches(el, sel) {
   }
 }
 
-function textOf(node) {
+export function textOf(node) {
   if (!node) return "";
   return clean(node.innerText || node.textContent || "");
 }
@@ -118,7 +118,7 @@ function dialogTitle(node) {
 }
 
 /** Active tab label inside a tabs container that wraps the annotated element. */
-function activeTabLabel(node) {
+export function activeTabLabel(node) {
   const activeSel = [
     ".el-tabs__item.is-active",
     ".ant-tabs-tab-active .ant-tabs-tab-btn",
@@ -154,11 +154,11 @@ function panelTabLabel(panel) {
 // `bs-http__pane` / `bs-dsm__pane`, whose active tab is a sibling marked
 // `is-active` / `active` (e.g. `bs-http__tab.is-active`). Very common in hand-
 // rolled component libraries (requirements item 5 example).
-const PANE_RE = /(?:^|[\s_-])(?:pane|panel|tabpane|tab-pane|tab-content)$/i;
-const TABISH_RE = /(?:tab|step|seg|nav|pill)/i;
-const ACTIVE_RE = /(?:^|[\s_-])(?:is-active|active|is-selected|selected|is-checked)(?:$|[\s_-])/i;
+export const PANE_RE = /(?:^|[\s_-])(?:pane|panel|tabpane|tab-pane|tab-content)$/i;
+export const TABISH_RE = /(?:tab|step|seg|nav|pill)/i;
+export const ACTIVE_RE = /(?:^|[\s_-])(?:is-active|active|is-selected|selected|is-checked)(?:$|[\s_-])/i;
 
-function classesOf(el) {
+export function classesOf(el) {
   const c = el.className;
   if (typeof c === "string") return c.split(/\s+/).filter(Boolean);
   if (c && typeof c.baseVal === "string") return c.baseVal.split(/\s+/).filter(Boolean);
@@ -170,7 +170,7 @@ function classesOf(el) {
  * tab of the same block (`{block}__…tab….is-active`) and return its label, plus
  * the block-root element so callers can de-duplicate per tab widget.
  */
-function customPaneTab(node) {
+export function customPaneTab(node) {
   const cls = classesOf(node);
   let block = "";
   for (const c of cls) {

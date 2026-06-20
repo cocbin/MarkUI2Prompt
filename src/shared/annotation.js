@@ -17,6 +17,9 @@ import { STATUS, LOCATOR_QUALITY } from "./constants.js";
  * @property {{raw:object, semantic:object, a11y:object, layout:object}} layers  4-layer DOM model
  * @property {string} userNote
  * @property {{type:string, component:string, file:string, vuePath:string, vnodePath?:string, domStack?:string}} framework
+ * @property {Array<{containerSelector:string,label:string,kind:string}>} tabPath  active tab chain at capture (for cross-tab relocation)
+ * @property {string} loopState  agent progress axis: ""|in_progress|ai_fixed|ai_reviewed
+ * @property {string} agentSummary  latest agent note from loop mode
  * @property {"open"|"fixed_pending"|"confirmed"|"rejected"} status
  * @property {Array<{status:string, note?:string, timestamp:number}>} history
  * @property {number} timestamp
@@ -45,7 +48,10 @@ export function createAnnotation(parts) {
       y: Number(parts.fallbackPosition?.y) || 0,
     },
     uiContext: Array.isArray(parts.uiContext) ? parts.uiContext : [],
+    tabPath: Array.isArray(parts.tabPath) ? parts.tabPath : [],
     layers: parts.layers || null,
+    loopState: parts.loopState || "",
+    agentSummary: parts.agentSummary || "",
     userNote: parts.userNote || "",
     framework: {
       type: parts.framework?.type || "unknown",

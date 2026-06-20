@@ -11,6 +11,11 @@
     "watch": "node build.mjs --watch",
     "harness": "npm run build && node scripts/build-harness.mjs",
     "serve": "node scripts/dev-server.mjs dist 5180",
+    "broker": "node server/broker.mjs",
+    "mcp": "node server/mcp.mjs",
+    "skill": "node scripts/build-skill.mjs",
+    "install-skill": "node scripts/build-skill.mjs && bash scripts/install-skill.sh",
+    "demo": "node scripts/dev-server.mjs demo 5179",
     "package": "npm run build && cd dist && zip -r ../ui2prompt-dist.zip . && cd ..",
     "clean": "rm -rf dist ui2prompt-dist.zip"
   },

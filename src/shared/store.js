@@ -88,6 +88,25 @@ export function createStore(backend) {
     return page.annotations[idx];
   }
 
+  /** Update the agent-progress axis (loop mode) without touching human status. */
+  async function setLoopState(rawUrl, id, loopState, agentSummary) {
+    const page = await getPage(rawUrl);
+    const idx = page.annotations.findIndex((a) => a.id === id);
+    if (idx < 0) return null;
+    const prev = page.annotations[idx];
+    if (prev.loopState === loopState && (agentSummary == null || prev.agentSummary === agentSummary)) {
+      return prev; // no change → skip the write
+    }
+    page.annotations[idx] = {
+      ...prev,
+      loopState: loopState || "",
+      agentSummary: agentSummary != null ? agentSummary : prev.agentSummary,
+      updatedAt: Date.now(),
+    };
+    await savePage(page);
+    return page.annotations[idx];
+  }
+
   async function updateNote(rawUrl, id, note) {
     const page = await getPage(rawUrl);
     const idx = page.annotations.findIndex((a) => a.id === id);
@@ -123,6 +142,7 @@ export function createStore(backend) {
     upsertAnnotation,
     deleteAnnotation,
     setStatus,
+    setLoopState,
     updateNote,
     clearPage,
     listPages,

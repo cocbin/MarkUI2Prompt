@@ -6,6 +6,7 @@ import {
   meaningfulClasses,
 } from "./locator.js";
 import { describeUiContext } from "./ui-context.js";
+import { captureTabPath } from "./tab-path.js";
 import { captureLayers } from "./dom-model.js";
 
 const MAX_OUTER_HTML = 4000;
@@ -34,6 +35,7 @@ export function captureElement(el) {
     bbox: box,
     fallbackPosition: boxCenter(box),
     uiContext: describeUiContext(el),
+    tabPath: captureTabPath(el),
     layers: captureLayers(el),
     dom: {
       outerHTML: (el.outerHTML || "").slice(0, MAX_OUTER_HTML),

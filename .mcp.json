@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ui2prompt-loop": {
+      "command": "node",
+      "args": ["server/mcp.mjs"],
+      "env": {
+        "UI2PROMPT_BROKER": "http://127.0.0.1:8787",
+        "UI2PROMPT_AGENT_NAME": "claude-code"
+      }
+    }
+  }
+}

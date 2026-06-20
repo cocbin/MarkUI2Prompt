@@ -15,6 +15,11 @@ export const DEFAULT_SETTINGS = {
   // while annotating in element-select mode, so stray keys (Delete, Esc, app
   // hotkeys…) cannot mutate the page underneath the annotation overlay.
   lockHostKeys: true,
+  // Loop mode: stream annotations as tasks to the local broker so coding agents
+  // can claim + fix them live (human annotates, agents fix). Off by default.
+  loopEnabled: false,
+  // Local broker base URL (started via `npm run loop:broker`).
+  brokerUrl: "http://127.0.0.1:8787",
 };
 
 function hasChromeStorage() {

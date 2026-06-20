@@ -14,6 +14,49 @@ English · [简体中文](./README.zh-CN.md)
 
 ---
 
+## ✨ Highlight: Loop mode — human annotates, agents fix, on repeat
+
+**Loop mode** turns UI2Prompt from a one-shot prompt exporter into a live, collaborative fix pipeline. You keep annotating UI problems in the browser; one or more coding agents (Claude Code, Cursor, …) continuously **claim → fix → self-review** each problem and report progress back onto the page — and when a fix has several valid options, the agent asks you a **multiple-choice question** you answer right in the popup, **without blocking** its other work.
+
+A tiny, zero-dependency local **broker** is the shared source of truth between the extension and the agents. It hands each task to exactly **one** agent at a time (atomic lock), so you can run **many agents in parallel** with no collisions. The agent drives it through a **skill** that auto-starts the broker for you — no MCP wiring, no servers to babysit.
+
+```mermaid
+flowchart LR
+    H["🧑 Human<br/>annotates UI problems"] -->|push task| B[("🗂️ Loop broker<br/>auto-started · atomic locks")]
+    B -->|next · locked| A1["🤖 Agent 1<br/>(ui2prompt-loop skill)"]
+    B -->|next · locked| A2["🤖 Agent N"]
+    A1 -->|edit source| S["📦 your app / demo"]
+    A1 -->|fixed · reviewed| B
+    A1 -.->|ask · non-blocking| B
+    B -.->|answer in popup| H
+    B -->|live status on markers| H
+```
+
+The agents never stop on their own: when the queue is empty they wait ~60s and poll again, looping until you end the session. Markers update live through **in-progress → AI-fixed → AI-reviewed**, and you close each item with **Confirm / Reject**.
+
+### Two-step setup
+
+1. **Install the browser extension** (see [Install](#install) below).
+2. **Install the loop skill** into your coding agent — one line, works for Claude Code and Cursor:
+   ```bash
+   curl -fsSL https://github.com/cocbin/MarkUI2Prompt/releases/latest/download/install.sh | bash
+   ```
+   <sub>From a clone instead: `npm run install-skill`.</sub>
+
+That's it. Now use it:
+
+1. In the extension, click the **↻ Loop** button, toggle **Enable loop mode**, and **Copy the agent prompt**.
+2. Paste the prompt into your agent (Claude Code, Cursor, …) and let it run. The skill **auto-starts the local broker** and the agent begins claiming and fixing — start a second agent in another terminal any time for more throughput.
+3. Annotate problems as usual. Watch the agents fix them live, answer any multiple-choice questions in the popup, and **Confirm** the results.
+
+> **Try it on the demo:** `npm run demo` serves a deliberately-buggy, multi-tab settings app at <http://localhost:5179>. Annotate its issues, paste the prompt into an agent, and watch them get fixed. This loop was verified end-to-end with a real Claude Code agent fixing all five planted bugs and marking each **AI-reviewed**.
+
+<details>
+<summary>Prefer MCP? (optional)</summary>
+
+The repo also ships an MCP server (`server/mcp.mjs`) exposing the same operations as native tools. Point your agent at `.mcp.json` (e.g. `claude --mcp-config .mcp.json`) and start the broker with `npm run broker`. The skill above is the recommended path because it needs no MCP config and starts the broker itself.
+</details>
+
 ## Why
 
 Telling an agent "fix the spacing on the dashboard" rarely works — it can't see your screen and it guesses at the wrong file. UI2Prompt closes that loop:
@@ -28,6 +71,8 @@ Every exported item has exactly two jobs: **locate it** and **state the problem*
 
 | Area | What you get |
 | --- | --- |
+| **🔁 Loop mode** | Human annotates, one or more coding agents continuously claim → fix → self-review through a local broker (MCP or HTTP). Non-blocking multiple-choice questions are answered in the popup; multi-agent runs are collision-free via atomic task locks. See [Loop mode](#-highlight-loop-mode--human-annotates-agents-fix-on-repeat). |
+| **Tab-aware markers** | Markers remember the dialog/tab they were created under. Switch tabs and a marker hides itself instead of lingering at the wrong spot; **Locate** automatically switches back to the recorded tab first. |
 | **Annotation mode** | Hover to highlight any element, click to drop a numbered marker, write the problem. The host page's own keyboard shortcuts are suppressed so your typing never triggers the underlying app. |
 | **Smart locators** | Selectors prefer `id` → semantic `data-*` (e.g. `data-type`) → `name`/`aria-label`/`title` → meaningful classes. Each selector is verified to match **exactly one** element; unstable positional selectors are graded `weak` and **left out of the prompt** so the agent is never misled. |
 | **Vue source mapping** | Detects the Vue component, its full component path, and the real source file (`__file`, e.g. `src/components/.../Widget.vue`) — the strongest possible "where". React component names are detected too. |
@@ -106,6 +151,15 @@ npm run build      # outputs the extension to dist/
 
 Then load the `dist/` folder via **Load unpacked** as above.
 
+### Loop skill (for loop mode)
+
+Install the agent skill once (Claude Code + Cursor); the broker then auto-starts on demand:
+
+```bash
+curl -fsSL https://github.com/cocbin/MarkUI2Prompt/releases/latest/download/install.sh | bash
+# or from a clone: npm run install-skill
+```
+
 ## Usage
 
 1. Click the toolbar icon → **Start annotating**, or press `⌘/Ctrl + M` (or `Alt + Shift + A`). The cursor becomes a crosshair and the floating toolbar appears.
@@ -141,17 +195,27 @@ src/
 │   ├── constants.js  annotation.js  id.js
 │   ├── db.js  backends.js  store.js      # IndexedDB + chrome.storage backends
 │   ├── router.js                         # message router (background + harness)
-│   ├── prompt.js                         # locale-aware prompt generation
+│   ├── prompt.js  loop.js                # locale-aware prompt + loop task/prompt builders
 │   ├── i18n.js  locales/                 # en / zh-CN / zh-TW / ja / ko
 │   ├── settings.js  theme.js  icons.js   # theme + locale prefs, design tokens, SVG
-├── background/    # Service worker: single source of truth, badge, screenshot + download
+├── background/    # Service worker: single source of truth, badge, screenshot + download, loop bridge
 ├── content/       # Page-side engine
-│   ├── index.js          # orchestration: messages, SPA routing, hotkey, settings
+│   ├── index.js          # orchestration: messages, SPA routing, hotkey, settings, loop poll
 │   ├── annotator.js      # annotation mode, shortcut blocking, reference picker
 │   ├── capture.js  locator.js            # selector/XPath/bbox + quality grading
+│   ├── ui-context.js  tab-path.js  dom-model.js  # dialog/tab context, tab-aware locate, 4-layer DOM
 │   ├── vue-detect.js  framework-bridge.js  main-world.js  # cross-world detection
 │   └── overlay/          # overlay.js / marker.js / editor.js / toolbar.js / snapshot.js
-└── popup/         # management UI (html/css/js + api.js + render.js + menus.js + dialogs.js)
+├── popup/         # management UI (html/css/js + api.js + render.js + menus.js + dialogs.js + loop-panel.js)
+server/            # Loop broker (run locally, not part of the extension)
+├── broker.mjs     # zero-dep HTTP task broker: queue, atomic locks, questions, persistence
+├── store.mjs      # in-memory task/question store + JSON persistence
+└── mcp.mjs        # optional stdio MCP server proxying the broker for coding agents
+skills/ui2prompt-loop/   # the installable agent skill (this is what users install)
+├── SKILL.md       # loop protocol the agent follows
+├── loop.mjs       # self-contained CLI: auto-starts the broker, claim/fix/review/ask/answer
+└── broker.mjs     # broker bundled into one zero-dep file (built from server/*.mjs)
+demo/              # deliberately-buggy multi-tab demo app (npm run demo)
 ```
 
 Key ideas:
@@ -167,9 +231,14 @@ npm run build      # build the extension to dist/
 npm run watch      # incremental rebuild on change
 npm run harness    # build dist/popup-dev.html to preview the popup UI in a normal tab
 npm run serve      # static-serve dist/ at http://localhost:5180 (open /popup-dev.html)
+npm run broker     # start the loop broker at http://127.0.0.1:8787 (normally auto-started by the skill)
+npm run mcp        # run the optional stdio MCP server (only if you use .mcp.json)
+npm run skill      # bundle the broker into skills/ui2prompt-loop and zip it to dist-skill/
+npm run install-skill  # build the skill and install it into ~/.claude/skills and ~/.cursor/skills
+npm run demo       # serve the buggy demo app at http://localhost:5179
 ```
 
-The harness drives the real store/router through a `chrome.*` shim and is **not** shipped in the extension build.
+The harness drives the real store/router through a `chrome.*` shim and is **not** shipped in the extension build. The `server/` broker, the `skills/` package, and the `demo/` app are local tools for loop mode and are excluded from the extension build.
 
 ## Limitations
 

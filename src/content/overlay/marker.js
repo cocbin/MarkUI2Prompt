@@ -1,6 +1,7 @@
 import { STATUS_COLOR, LOCATE_METHOD, LOCATOR_QUALITY } from "../../shared/constants.js";
 import { t } from "../../shared/i18n.js";
 import { relocate } from "../locator.js";
+import { isOnRecordedTab } from "../tab-path.js";
 
 /** Best one-line "where" hint for the marker tooltip. */
 function metaText(a) {
@@ -23,6 +24,9 @@ export class Marker {
     this.method = LOCATE_METHOD.NONE;
     this.degraded = false;
     this.selected = false;
+    this.loopState = annotation.loopState || "";
+    this.onRecordedTab = true;
+    this.hidden = false;
     this.lastX = -99999;
     this.lastY = -99999;
     this._build();
@@ -45,13 +49,29 @@ export class Marker {
     const tooltip = document.createElement("div");
     tooltip.className = "tooltip";
     tooltip.innerHTML =
-      '<div class="t-status"></div><div class="t-note"></div><div class="t-meta"></div><div class="t-degraded"></div>';
+      '<div class="t-status"></div><div class="t-loop"></div><div class="t-note"></div><div class="t-meta"></div><div class="t-degraded"></div>';
 
     wrapper.appendChild(dot);
     wrapper.appendChild(tooltip);
     this.node = wrapper;
     this.dot = dot;
     this.tooltip = tooltip;
+    this._applyLoopState();
+  }
+
+  /** Loop-mode agent progress ring + tooltip line (in_progress/ai_fixed/ai_reviewed). */
+  setLoopState(state) {
+    if (state === this.loopState) return;
+    this.loopState = state || "";
+    this._applyLoopState();
+  }
+
+  _applyLoopState() {
+    const cls = ["in_progress", "ai_fixed", "ai_reviewed"];
+    for (const c of cls) this.node.classList.toggle(`loop-${c}`, this.loopState === c);
+    this.node.classList.toggle("loop-active", cls.includes(this.loopState));
+    const line = this.tooltip && this.tooltip.querySelector(".t-loop");
+    if (line) line.textContent = cls.includes(this.loopState) ? t(`loop.state.${this.loopState}`) : "";
   }
 
   /** Re-bind to a page element using selector -> xpath -> fallback. */
@@ -61,8 +81,19 @@ export class Marker {
     this.method = method;
     this.degraded = !element;
     this.node.classList.toggle("degraded", this.degraded);
+    this.recheckTab();
     if (this.dot) this.update(this.annotation, this.index); // refresh degraded tooltip
     return method;
+  }
+
+  /** Tab-aware: are we currently viewing the tab this was annotated under? */
+  recheckTab() {
+    this.onRecordedTab = isOnRecordedTab(this.annotation);
+  }
+
+  /** Laid-out check: display:none / detached → no rects (so hide the marker). */
+  _isLaidOut(el) {
+    return el.getClientRects().length > 0;
   }
 
   update(annotation, index) {
@@ -110,6 +141,16 @@ export class Marker {
   }
 
   applyPosition() {
+    // Hide when the recorded tab is not active, or when the bound element is in
+    // a hidden (display:none) tab pane — never leave a marker at a stale spot.
+    const connected = this.el && this.el.isConnected;
+    const hide = !this.onRecordedTab || (connected && !this._isLaidOut(this.el));
+    if (hide !== this.hidden) {
+      this.hidden = hide;
+      this.node.classList.toggle("off-tab", hide);
+      this.lastX = -99999; // force a reposition when it reappears
+    }
+    if (hide) return;
     const { x, y } = this.computePosition();
     if (x === this.lastX && y === this.lastY) return;
     this.lastX = x;

@@ -1,5 +1,6 @@
 import { OVERLAY_CSS } from "../styles.js";
 import { applyThemeAttr } from "../../shared/theme.js";
+import { activateTabPath } from "../tab-path.js";
 import { Marker } from "./marker.js";
 import { EditorPopover } from "./editor.js";
 import { Toolbar } from "./toolbar.js";
@@ -19,6 +20,7 @@ export class OverlayManager {
     this.theme = "system";
     this.annotationActive = false;
     this.modeHandlers = {};
+    this._tabCheckAt = 0;
     this.tick = this.tick.bind(this);
   }
 
@@ -163,6 +165,13 @@ export class OverlayManager {
     this._stop();
   }
 
+  /** Reflect live agent progress (loop mode): map of annotationId → loopState. */
+  setLoopStates(map) {
+    for (const [id, marker] of this.markers) {
+      marker.setLoopState((map && map[id]) || "");
+    }
+  }
+
   getById(id) {
     return this.markers.get(id);
   }
@@ -188,14 +197,20 @@ export class OverlayManager {
     this.clearHighlight();
     const hadToolbar = this.toolbar && this.toolbar.node.classList.contains("visible");
     if (hadToolbar) this.toolbar.hide();
-    const items = this.order.map((id, i) => {
+    const items = [];
+    this.order.forEach((id, i) => {
       const m = this.markers.get(id);
-      if (m) m.resolve();
-      return {
+      if (m) {
+        m.resolve();
+        // Don't draw legend arrows for markers hidden on another tab — they
+        // aren't visible in the captured screenshot.
+        if (!m.onRecordedTab) return;
+      }
+      items.push({
         index: i + 1,
         note: m ? m.annotation.userNote : "",
         el: m ? m.el : null,
-      };
+      });
     });
     await this.snapshot.render(items);
     this._snapHadToolbar = hadToolbar;
@@ -278,22 +293,34 @@ export class OverlayManager {
 
   // ---- locate ------------------------------------------------------------
 
-  locate(annotation) {
+  async locate(annotation) {
+    // Cross-tab locate: first click the recorded tab chain back into view so
+    // the element is actually rendered, then bind + scroll + highlight.
+    let switched = 0;
+    try {
+      switched = await activateTabPath(annotation);
+    } catch {
+      /* tab widget changed shape — fall through to a best-effort locate */
+    }
     const marker = this.markers.get(annotation.id);
-    if (marker) marker.resolve();
+    if (marker) {
+      marker.recheckTab();
+      marker.resolve();
+    }
     const el = marker && marker.el;
     if (el && el.isConnected) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       setTimeout(() => {
         const rect = el.getBoundingClientRect();
         this.flashHighlight(rect, annotation.userNote);
-      }, 300);
+      }, switched ? 360 : 300);
     } else {
       const fb = annotation.fallbackPosition || { x: 0, y: 0 };
       window.scrollTo({ top: Math.max(0, fb.y - window.innerHeight / 2), behavior: "smooth" });
     }
     this._select(annotation.id);
     this.closePopoverSoon();
+    return { switched };
   }
 
   closePopoverSoon() {
@@ -324,7 +351,16 @@ export class OverlayManager {
 
   tick() {
     if (!this.running) return;
-    if (!document.hidden) this._renderFrame();
+    if (!document.hidden) {
+      // Tab switches often only toggle classes/inline-style (no childList
+      // mutation), so re-check tab membership on a throttle, not every frame.
+      const now = performance.now();
+      if (now - this._tabCheckAt > 300) {
+        this._tabCheckAt = now;
+        for (const marker of this.markers.values()) marker.recheckTab();
+      }
+      this._renderFrame();
+    }
     this.raf = requestAnimationFrame(this.tick);
   }
 

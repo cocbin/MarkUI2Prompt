@@ -7,6 +7,7 @@ import { Api, getActiveTab } from "./api.js";
 import { countByStatus, renderFilters, renderList, renderProjects } from "./render.js";
 import { openMenu, closeMenu } from "./menus.js";
 import { openSettings, openGuide } from "./dialogs.js";
+import { openLoopPanel } from "./loop-panel.js";
 
 // Inject design tokens once (single source of truth shared with the overlay).
 (function injectTokens() {
@@ -30,6 +31,7 @@ const dom = {
   tagline: document.getElementById("tagline"),
   langBtn: document.getElementById("langBtn"),
   themeBtn: document.getElementById("themeBtn"),
+  loopBtn: document.getElementById("loopBtn"),
   settingsBtn: document.getElementById("settingsBtn"),
   helpBtn: document.getElementById("helpBtn"),
   modeBtn: document.getElementById("modeBtn"),
@@ -46,6 +48,7 @@ const dom = {
   menu: document.getElementById("menu"),
   settingsDialog: document.getElementById("settingsDialog"),
   guideDialog: document.getElementById("guideDialog"),
+  loopDialog: document.getElementById("loopDialog"),
   toast: document.getElementById("toast"),
 };
 
@@ -127,6 +130,9 @@ function applyStaticLabels() {
   dom.tagline.textContent = t("tagline");
   dom.langBtn.innerHTML = icon("languages", { size: 16 });
   dom.langBtn.title = t("settings.language");
+  dom.loopBtn.innerHTML = icon("loop", { size: 16 });
+  dom.loopBtn.title = t("loop.title");
+  dom.loopBtn.classList.toggle("active", !!state.settings.loopEnabled);
   dom.settingsBtn.innerHTML = icon("gear", { size: 16 });
   dom.settingsBtn.title = t("settings.title");
   dom.helpBtn.innerHTML = icon("help", { size: 16 });
@@ -175,8 +181,8 @@ async function refresh() {
 const handlers = {
   onLocate: async (id) => {
     try {
-      await Api.locate(state.tabId, id);
-      toast(t("toast.located"));
+      const res = await Api.locate(state.tabId, id);
+      toast(res && res.switched ? t("toast.tabSwitched") : t("toast.located"));
     } catch {
       toast(t("toast.locateFail"));
     }
@@ -329,6 +335,30 @@ function showGuide() {
   });
 }
 
+function showLoopPanel() {
+  closeMenu();
+  document.body.classList.add("wide");
+  openLoopPanel(dom.loopDialog, {
+    loopEnabled: !!state.settings.loopEnabled,
+    brokerUrl: state.settings.brokerUrl,
+    onToggleLoop: async (enabled) => {
+      state.settings = await setSettings({ loopEnabled: enabled });
+      applyStaticLabels();
+      if (enabled) {
+        try {
+          await Api.loopPush();
+        } catch {
+          /* broker offline — tasks resync once it's up */
+        }
+      }
+    },
+    copy: async (text) => toast((await copy(text)) ? t("toast.copied") : t("toast.copyFail")),
+    toast,
+    onChanged: refresh,
+    onClose: () => document.body.classList.remove("wide"),
+  });
+}
+
 // ---- events -------------------------------------------------------------
 
 function wireEvents() {
@@ -352,6 +382,7 @@ function wireEvents() {
     applyTheme();
   };
 
+  dom.loopBtn.onclick = showLoopPanel;
   dom.settingsBtn.onclick = showSettings;
   dom.helpBtn.onclick = showGuide;
 

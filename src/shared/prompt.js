@@ -304,6 +304,15 @@ function locationLine(a, L) {
   return parts.join(" · ");
 }
 
+/**
+ * Public "where in the UI" description for one annotation in a given locale —
+ * reused by loop mode so a task's `location` matches the prompt exactly.
+ */
+export function describeLocation(annotation, locale) {
+  const L = PROMPT_I18N[resolvePromptLocale(locale)];
+  return locationLine(annotation, L);
+}
+
 function hasWeakOnly(annotations) {
   return annotations.some((a) => {
     const fw = a.framework || {};

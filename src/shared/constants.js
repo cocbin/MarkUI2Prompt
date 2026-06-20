@@ -71,6 +71,27 @@ export const MSG = {
   GET_STATS: "GET_STATS",
   CAPTURE_TAB: "CAPTURE_TAB",
   SNAPSHOT: "SNAPSHOT",
+  // ---- loop mode (human ⇄ agent collaboration via the local broker) ----
+  LOOP_HEALTH: "LOOP_HEALTH",
+  LOOP_STATE: "LOOP_STATE",
+  LOOP_PUSH: "LOOP_PUSH",
+  LOOP_ANSWER: "LOOP_ANSWER",
+  LOOP_RESET: "LOOP_RESET",
+  LOOP_PROMPT: "LOOP_PROMPT",
+};
+
+/**
+ * Broker task statuses (mirrored from server/store.mjs). The agent axis is
+ * tracked on annotations as `loopState`, kept separate from the human `status`
+ * axis (open/confirmed/rejected) so both progress views coexist.
+ */
+export const LOOP_STATE = {
+  NONE: "",
+  IN_PROGRESS: "in_progress",
+  AI_FIXED: "ai_fixed",
+  AI_REVIEWED: "ai_reviewed",
+  CONFIRMED: "confirmed",
+  REJECTED: "rejected",
 };
 
 export const STORAGE_KEYS = {

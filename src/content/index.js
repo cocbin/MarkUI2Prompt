@@ -13,6 +13,19 @@ function hasRuntime() {
   return typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.id;
 }
 
+/** Fire-and-forget background request that resolves to data or null. */
+function bgSend(type, payload = {}) {
+  return new Promise((resolve) => {
+    if (!hasRuntime()) return resolve(null);
+    chrome.runtime.sendMessage({ type, ...payload }, (res) => {
+      if (chrome.runtime.lastError) return resolve(null);
+      resolve(res && res.ok ? res.data : null);
+    });
+  });
+}
+
+const LOOP_PROGRESS = ["in_progress", "ai_fixed", "ai_reviewed"];
+
 class ContentApp {
   constructor() {
     this.bridge = createBridge();
@@ -150,6 +163,33 @@ class ContentApp {
     if (this.annotator) this.annotator.setLockHostKeys(s.lockHostKeys);
     // Re-filter visible markers when the show-resolved preference flips.
     if (prevResolved !== s.showResolved) this.overlay.setAnnotations(this._visibleAnnotations());
+    this._syncLoopPoll(!!s.loopEnabled);
+  }
+
+  // ---- loop mode: reflect live agent progress on page markers ------------
+
+  _syncLoopPoll(enabled) {
+    if (enabled && !this._loopTimer) {
+      this._loopTick();
+      this._loopTimer = setInterval(() => this._loopTick(), 3000);
+    } else if (!enabled && this._loopTimer) {
+      clearInterval(this._loopTimer);
+      this._loopTimer = 0;
+      this.overlay.setLoopStates({});
+    }
+  }
+
+  async _loopTick() {
+    const snap = await bgSend(MSG.LOOP_STATE);
+    if (!snap || !Array.isArray(snap.tasks)) return;
+    const here = normalizeUrl(this.url());
+    const map = {};
+    for (const task of snap.tasks) {
+      if (normalizeUrl(task.url) === here && LOOP_PROGRESS.includes(task.status)) {
+        map[task.id] = task.status;
+      }
+    }
+    this.overlay.setLoopStates(map);
   }
 
   _watchSettings() {
@@ -189,8 +229,9 @@ class ContentApp {
       }
       case MSG.LOCATE: {
         const a = this.annotations.find((x) => x.id === msg.id);
-        if (a) this.overlay.locate(a);
-        return { ok: !!a };
+        if (!a) return { ok: false };
+        const res = await this.overlay.locate(a);
+        return { ok: true, switched: (res && res.switched) || 0 };
       }
       case MSG.SNAPSHOT:
         return await this.captureAnnotated();

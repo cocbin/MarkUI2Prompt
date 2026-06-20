@@ -44,4 +44,11 @@ export const Api = {
   setMode: (tabId, enabled) => toTab(tabId, MSG.SET_MODE, { enabled }),
   locate: (tabId, id) => toTab(tabId, MSG.LOCATE, { id }),
   snapshot: (tabId) => toTab(tabId, MSG.SNAPSHOT),
+  // ---- loop mode ----
+  loopHealth: () => bg(MSG.LOOP_HEALTH),
+  loopState: () => bg(MSG.LOOP_STATE),
+  loopPrompt: () => bg(MSG.LOOP_PROMPT),
+  loopPush: () => bg(MSG.LOOP_PUSH),
+  loopAnswer: (questionId, answer) => bg(MSG.LOOP_ANSWER, { questionId, answer }),
+  loopReset: () => bg(MSG.LOOP_RESET),
 };
