@@ -50,5 +50,7 @@ export const Api = {
   loopPrompt: () => bg(MSG.LOOP_PROMPT),
   loopPush: () => bg(MSG.LOOP_PUSH),
   loopAnswer: (questionId, answer) => bg(MSG.LOOP_ANSWER, { questionId, answer }),
+  loopFeedback: (id, feedback) => bg(MSG.LOOP_FEEDBACK, { id, feedback }),
+  loopStop: () => bg(MSG.LOOP_STOP),
   loopReset: () => bg(MSG.LOOP_RESET),
 };

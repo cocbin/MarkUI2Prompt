@@ -87,6 +87,11 @@ function normalizeBox(b) {
 /**
  * Apply a status transition, recording history. Per requirements §7, a Reject
  * moves the annotation back to `open` after recording the rejection.
+ *
+ * For a Reject the `note` is the human's *rejection reason* (what the agent
+ * should do differently), so it is logged to history rather than overwriting
+ * the original problem description (`userNote`). The reason is also propagated
+ * to the loop broker as the task's `feedback` so a re-claiming agent reads it.
  */
 export function applyStatus(annotation, nextStatus, note) {
   const now = Date.now();
@@ -94,16 +99,20 @@ export function applyStatus(annotation, nextStatus, note) {
   history.push({ status: nextStatus, note: note || "", timestamp: now });
 
   let resolvedStatus = nextStatus;
+  let userNote = annotation.userNote;
   if (nextStatus === STATUS.REJECTED) {
-    // Reject is recorded, then the annotation re-opens for another pass.
+    // Reject is recorded (with its reason in history), then the annotation
+    // re-opens for another pass — the original problem text is kept intact.
     resolvedStatus = STATUS.OPEN;
     history.push({ status: STATUS.OPEN, timestamp: now + 1 });
+  } else if (note !== undefined && note !== null) {
+    userNote = note;
   }
 
   return {
     ...annotation,
     status: resolvedStatus,
-    userNote: note !== undefined && note !== null ? note : annotation.userNote,
+    userNote,
     history,
     updatedAt: now,
   };

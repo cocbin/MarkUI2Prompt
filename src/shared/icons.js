@@ -52,11 +52,40 @@ const PATHS = {
   play: '<polygon points="6 3 20 12 6 21 6 3"/>',
   message:
     '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  // Crosshair-in-a-frame: "pick an element to read its location".
+  locatePick:
+    '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/><path d="M12 7v1.5"/><path d="M12 15.5V17"/><path d="M7 12h1.5"/><path d="M15.5 12H17"/>',
+  expand:
+    '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>',
+  stop: '<rect width="12" height="12" x="6" y="6" rx="2"/>',
 };
 
 export function icon(name, { size = 16, stroke = 2, cls = "" } = {}) {
   const inner = PATHS[name] || "";
   return `<svg class="icon${cls ? " " + cls : ""}" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${inner}</svg>`;
+}
+
+/**
+ * Animated "robot hard at work" loader (self-contained SMIL so it works in the
+ * popup, the overlay shadow DOM and the standalone page alike). The head bobs,
+ * the eyes + antenna pulse, and a gear spins beside it (requirements item 1).
+ */
+export function botWorking({ size = 16, cls = "" } = {}) {
+  return `<svg class="icon icon-bot-working${cls ? " " + cls : ""}" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  <line x1="12" y1="2.6" x2="12" y2="5"/>
+  <circle cx="12" cy="2" r="1.05" fill="currentColor" stroke="none"><animate attributeName="opacity" values="1;.25;1" dur="1s" repeatCount="indefinite"/></circle>
+  <g><animateTransform attributeName="transform" type="translate" values="0 0;0 .7;0 0" dur="1.6s" repeatCount="indefinite"/>
+    <rect x="5" y="5" width="14" height="9" rx="3"/>
+    <path d="M3 9.5h2"/><path d="M19 9.5h2"/>
+    <circle cx="9.5" cy="9.5" r="1.05" fill="currentColor" stroke="none"><animate attributeName="opacity" values="1;.3;1" dur="2.2s" repeatCount="indefinite"/></circle>
+    <circle cx="14.5" cy="9.5" r="1.05" fill="currentColor" stroke="none"><animate attributeName="opacity" values="1;.3;1" dur="2.2s" begin=".2s" repeatCount="indefinite"/></circle>
+  </g>
+  <g transform="translate(18.4 18.4)"><g><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2.6s" repeatCount="indefinite"/>
+    <circle r="1.7"/>
+    <path d="M0 -3.2V-1.7M0 3.2V1.7M-3.2 0H-1.7M3.2 0H1.7"/>
+    <path d="M2.26 -2.26 1.2 -1.2M-2.26 2.26 -1.2 1.2M2.26 2.26 1.2 1.2M-2.26 -2.26 -1.2 -1.2"/>
+  </g></g>
+</svg>`;
 }
 
 export const ICON_NAMES = Object.keys(PATHS);

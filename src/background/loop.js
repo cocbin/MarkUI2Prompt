@@ -39,6 +39,9 @@ export const Broker = {
     call(url, "POST", `/api/questions/${encodeURIComponent(qid)}/answer`, { answer }),
   verdict: (url, id, verdict, note) =>
     call(url, "POST", `/api/tasks/${encodeURIComponent(id)}/verdict`, { verdict, note }),
+  editFeedback: (url, id, feedback) =>
+    call(url, "POST", `/api/tasks/${encodeURIComponent(id)}/feedback`, { feedback }),
+  control: (url, patch) => call(url, "POST", "/api/control", patch),
   reset: (url) => call(url, "POST", "/api/reset"),
 };
 

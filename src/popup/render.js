@@ -1,6 +1,7 @@
 import { STATUS, STATUS_ORDER } from "../shared/constants.js";
 import { t } from "../shared/i18n.js";
 import { icon } from "../shared/icons.js";
+import { renderLoopExtras } from "./loop-item.js";
 
 const FILTERS = [
   { key: "all", label: () => t("filter.all") },
@@ -90,7 +91,7 @@ function statusHistoryChain(history) {
   return labels.length > 1 ? labels.join(" → ") : "";
 }
 
-function buildItem(a, index, handlers, editing) {
+function buildItem(a, index, handlers, editing, loop) {
   const item = el("div", "item");
   const head = el("div", "item-head");
 
@@ -119,6 +120,9 @@ function buildItem(a, index, handlers, editing) {
 
   if (editing === a.id) item.appendChild(buildEditArea(a, handlers));
   else item.appendChild(statusActions(a, handlers));
+
+  const extras = renderLoopExtras(a, loop, handlers);
+  if (extras) item.appendChild(extras);
   return item;
 }
 
@@ -136,7 +140,7 @@ function buildEditArea(a, handlers) {
   return wrap;
 }
 
-export function renderList(container, annotations, filter, handlers, editing) {
+export function renderList(container, annotations, filter, handlers, editing, loop) {
   container.innerHTML = "";
   const filtered = annotations.filter((a) => filter === "all" || a.status === filter);
   if (!filtered.length) {
@@ -151,7 +155,7 @@ export function renderList(container, annotations, filter, handlers, editing) {
     .forEach((a, i) => indexById.set(a.id, i + 1));
   filtered
     .sort((a, b) => a.timestamp - b.timestamp)
-    .forEach((a) => container.appendChild(buildItem(a, indexById.get(a.id), handlers, editing)));
+    .forEach((a) => container.appendChild(buildItem(a, indexById.get(a.id), handlers, editing, loop)));
 }
 
 export function renderProjects(container, pages, currentUrl, onOpen) {

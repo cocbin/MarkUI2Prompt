@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UI2Prompt · Loop</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body class="loop-page">
+    <div class="lpg" id="app">
+      <header class="lpg-header">
+        <div class="brand">
+          <span class="brand-dot"></span>
+          <div class="brand-text">
+            <span class="brand-name">UI2Prompt</span>
+            <span class="brand-tagline" id="lpgTagline"></span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <button id="lpgThemeBtn" class="icon-btn" type="button"></button>
+          <button id="lpgRefresh" class="icon-btn" type="button"></button>
+        </div>
+      </header>
+
+      <main class="lpg-main">
+        <section class="lpg-col lpg-col-main">
+          <div class="set-row">
+            <div class="set-text">
+              <div class="set-label" id="lpgEnableLabel"></div>
+              <div class="set-hint" id="lpgEnableHint"></div>
+            </div>
+            <div class="set-control">
+              <label class="switch">
+                <input type="checkbox" id="lpgToggle" />
+                <span class="track"><span class="thumb"></span></span>
+              </label>
+            </div>
+          </div>
+          <div id="lpgBoard"></div>
+        </section>
+
+        <aside class="lpg-col lpg-col-side">
+          <div class="lp-section">
+            <div class="lp-section-head">
+              <span id="lpgPromptTitle"></span>
+              <button class="btn ghost lp-copy" id="lpgCopy" type="button"></button>
+            </div>
+            <div class="lp-hint" id="lpgHowto"></div>
+            <pre class="lp-prompt" id="lpgPrompt"></pre>
+          </div>
+        </aside>
+      </main>
+
+      <div id="lpgToast" class="toast" role="status" aria-live="polite"></div>
+    </div>
+
+    <script src="loop-page.js"></script>
+  </body>
+</html>

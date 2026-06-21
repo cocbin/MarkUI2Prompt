@@ -24,6 +24,10 @@ const state = {
   editing: null,
   modeAvailable: false,
   settings: { theme: "system", locale: "", showResolved: false, lockHostKeys: true },
+  // Live agent progress merged into the main list (requirements items 1 & 2).
+  loop: { byId: new Map(), questionsByTask: new Map() },
+  loopEditing: false, // pause loop re-render while the user types a reply/reason
+  loopTimer: 0,
 };
 
 const dom = {
@@ -161,7 +165,41 @@ function render() {
     state.filter = key;
     render();
   });
-  renderList(dom.list, state.annotations, state.filter, handlers, state.editing);
+  renderList(dom.list, state.annotations, state.filter, handlers, state.editing, state.loop);
+}
+
+// ---- loop mode: merge live agent progress into the main list --------------
+
+function syncLoopPoll(enabled) {
+  if (enabled && !state.loopTimer) {
+    loopTick();
+    state.loopTimer = setInterval(loopTick, 2500);
+  } else if (!enabled && state.loopTimer) {
+    clearInterval(state.loopTimer);
+    state.loopTimer = 0;
+    state.loop = { byId: new Map(), questionsByTask: new Map() };
+    render();
+  }
+}
+
+async function loopTick() {
+  let snap = null;
+  try {
+    snap = await Api.loopState();
+  } catch {
+    return; // broker offline — main list stays purely human-side
+  }
+  const byId = new Map();
+  for (const task of snap.tasks || []) byId.set(task.id, task);
+  const questionsByTask = new Map();
+  for (const q of snap.questions || []) {
+    if (q.answer != null) continue;
+    if (!questionsByTask.has(q.taskId)) questionsByTask.set(q.taskId, []);
+    questionsByTask.get(q.taskId).push(q);
+  }
+  state.loop = { byId, questionsByTask };
+  // Don't yank the DOM out from under a half-typed reply/rejection.
+  if (!state.loopEditing) render();
 }
 
 async function refresh() {
@@ -187,9 +225,19 @@ const handlers = {
       toast(t("toast.locateFail"));
     }
   },
-  onStatus: async (id, status) => {
-    await Api.setStatus(state.url, id, status);
+  onStatus: async (id, status, note) => {
+    await Api.setStatus(state.url, id, status, note);
     await refresh();
+    if (state.loopTimer) loopTick();
+  },
+  onLoopAnswer: async (questionId, answer) => {
+    try {
+      await Api.loopAnswer(questionId, answer);
+      toast(t("toast.replySent"));
+    } catch {
+      toast(t("loop.answerFail"));
+    }
+    if (state.loopTimer) loopTick();
   },
   onDelete: async (id) => {
     if (!confirm(t("confirm.deleteHint"))) return;
@@ -340,10 +388,10 @@ function showLoopPanel() {
   document.body.classList.add("wide");
   openLoopPanel(dom.loopDialog, {
     loopEnabled: !!state.settings.loopEnabled,
-    brokerUrl: state.settings.brokerUrl,
     onToggleLoop: async (enabled) => {
       state.settings = await setSettings({ loopEnabled: enabled });
       applyStaticLabels();
+      syncLoopPoll(enabled);
       if (enabled) {
         try {
           await Api.loopPush();
@@ -355,6 +403,14 @@ function showLoopPanel() {
     copy: async (text) => toast((await copy(text)) ? t("toast.copied") : t("toast.copyFail")),
     toast,
     onChanged: refresh,
+    onExpand: () => {
+      try {
+        chrome.tabs.create({ url: chrome.runtime.getURL("loop-page.html") });
+        window.close();
+      } catch {
+        /* opening the page failed — stay in the popup */
+      }
+    },
     onClose: () => document.body.classList.remove("wide"),
   });
 }
@@ -423,6 +479,15 @@ function wireEvents() {
     await refresh();
     toast(t("toast.cleared"));
   };
+
+  // Pause loop-driven re-renders while the user is typing a reply / reject
+  // reason inside a list item, so their text isn't wiped by the 2.5s poll.
+  dom.list.addEventListener("focusin", (e) => {
+    if (e.target.matches("input, textarea")) state.loopEditing = true;
+  });
+  dom.list.addEventListener("focusout", (e) => {
+    if (e.target.matches("input, textarea")) state.loopEditing = false;
+  });
 }
 
 chrome.runtime.onMessage.addListener((msg) => {
@@ -451,6 +516,7 @@ async function init() {
     applyTheme();
     applyStaticLabels();
     render();
+    syncLoopPoll(!!s.loopEnabled);
   });
 
   const tab = await getActiveTab();
@@ -461,6 +527,7 @@ async function init() {
   await initMode();
   applyStaticLabels();
   await refresh();
+  syncLoopPoll(!!state.settings.loopEnabled);
 }
 
 init();

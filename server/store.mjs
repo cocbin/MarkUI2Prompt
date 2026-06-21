@@ -39,6 +39,9 @@ export class TaskStore {
     this.tasks = new Map();
     this.questions = new Map();
     this.agents = new Map();
+    // Run control shared with the daemon/agents: when `stop` is set, a running
+    // scheduler exits its loop after finishing the current task.
+    this.control = { stop: false, updatedAt: 0 };
     this._saveTimer = null;
     this._load();
   }
@@ -51,6 +54,8 @@ export class TaskStore {
       const raw = JSON.parse(readFileSync(this.file, "utf8"));
       for (const t of raw.tasks || []) this.tasks.set(t.id, t);
       for (const q of raw.questions || []) this.questions.set(q.id, q);
+      // `stop` is a transient run-control flag; never resurrect it on restart.
+      if (raw.control) this.control = { ...this.control, ...raw.control, stop: false };
     } catch {
       /* corrupt state file → start fresh */
     }
@@ -65,7 +70,11 @@ export class TaskStore {
         writeFileSync(
           this.file,
           JSON.stringify(
-            { tasks: [...this.tasks.values()], questions: [...this.questions.values()] },
+            {
+              tasks: [...this.tasks.values()],
+              questions: [...this.questions.values()],
+              control: this.control,
+            },
             null,
             2,
           ),
@@ -132,6 +141,7 @@ export class TaskStore {
       lockedBy: null,
       lockedAt: 0,
       agentSummary: "",
+      feedback: "", // latest human rejection reason; cleared once re-fixed
       createdAt: now,
       updatedAt: now,
     };
@@ -161,7 +171,11 @@ export class TaskStore {
     return [...this.tasks.values()].sort((a, b) => a.createdAt - b.createdAt);
   }
 
-  /** Human verdict from the extension: confirm or reject (re-opens the task). */
+  /**
+   * Human verdict from the extension: confirm or reject (re-opens the task).
+   * A reject stores the human's reason as `feedback` (NOT overwriting the
+   * original `problem`) so a re-claiming agent fixes it differently.
+   */
   setHumanVerdict(id, verdict, note) {
     const task = this.tasks.get(id);
     if (!task) return null;
@@ -171,11 +185,43 @@ export class TaskStore {
       task.status = TASK_STATUS.OPEN;
       task.lockedBy = null;
       task.lockedAt = 0;
+      if (note != null) task.feedback = String(note || "");
     }
-    if (note != null) task.problem = note || task.problem;
     task.updatedAt = Date.now();
     this._persist();
     return task;
+  }
+
+  /**
+   * Edit a rejected task's feedback. Only allowed while the task is still in
+   * the queue and unclaimed — once an agent has claimed it (in_progress) the
+   * reason is frozen until the next iteration (requirements item 4).
+   */
+  editFeedback(id, note) {
+    const task = this.tasks.get(id);
+    if (!task) return null;
+    const claimed = task.lockedBy && !this._lockExpired(task);
+    if (task.status !== TASK_STATUS.OPEN || claimed) {
+      const err = new Error("feedback locked: task already claimed by an agent");
+      err.status = 409;
+      throw err;
+    }
+    task.feedback = String(note == null ? "" : note);
+    task.updatedAt = Date.now();
+    this._persist();
+    return task;
+  }
+
+  // ---- run control (daemon / agents) ------------------------------------
+
+  getControl() {
+    return { ...this.control };
+  }
+
+  setControl(patch) {
+    this.control = { ...this.control, ...(patch || {}), updatedAt: Date.now() };
+    this._persist();
+    return this.getControl();
   }
 
   // ---- tasks (agent side) -----------------------------------------------
@@ -218,6 +264,7 @@ export class TaskStore {
     task.status = TASK_STATUS.AI_FIXED;
     task.lockedBy = agentId;
     task.agentSummary = summary || task.agentSummary;
+    task.feedback = ""; // the rejection reason has now been addressed
     task.updatedAt = Date.now();
     this.heartbeat(agentId);
     this._persist();
@@ -298,6 +345,7 @@ export class TaskStore {
       tasks: this.listTasks(),
       questions: this.listQuestions(),
       agents: this.listAgents(),
+      control: this.getControl(),
     };
   }
 }

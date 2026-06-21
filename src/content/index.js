@@ -45,11 +45,14 @@ class ContentApp {
       onExitMode: () => this.setMode(false),
       onCapture: () => this.captureAnnotated(),
       onExitShot: () => this.exitWithShot(),
+      onCopyPage: () => this.copyCurrentPage(),
     });
     this.annotator = new Annotator(this.overlay, {
       onCreate: (a) => this._mutate(() => this.bridge.upsert(a)),
       getUrl: () => this.url(),
       onExit: () => this.setMode(false),
+      getLocale: () => resolveLocale(this.settings.locale),
+      onCopyLocation: (text) => this._copyText(text, t("toast.locCopied")),
     });
     await this._loadSettings();
     this._installMessageListener();
@@ -131,6 +134,50 @@ class ContentApp {
       this.overlay.clearSnapshot();
       this.overlay.toolbarBusy(null);
     }
+  }
+
+  /**
+   * Copy the current page's annotations as a ready-to-paste prompt (requirements
+   * item 5). Same builder the popup's "copy" uses, scoped to this URL only.
+   */
+  async copyCurrentPage() {
+    const page = await this.bridge.getPage(this.url());
+    if (!page.annotations || !page.annotations.length) {
+      this._flashToolbar(t("toast.noAnnotations"));
+      return { ok: false, reason: "empty" };
+    }
+    const text = buildPrompt(page, { locale: resolveLocale(this.settings.locale) });
+    const ok = await this._copyText(text, t("toast.pageCopied"));
+    return { ok };
+  }
+
+  /** Write text to the clipboard with a graceful fallback, then flash a toast. */
+  async _copyText(text, okMsg) {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand("copy");
+        ta.remove();
+      } catch {
+        ok = false;
+      }
+    }
+    this._flashToolbar(ok ? okMsg || t("toast.copied") : t("toast.copyFail"));
+    return ok;
+  }
+
+  _flashToolbar(text) {
+    this.overlay.toolbarBusy(text);
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => this.overlay.toolbarBusy(null), 1800);
   }
 
   _captureViaBg() {

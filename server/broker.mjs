@@ -74,6 +74,12 @@ on("POST", /^\/api\/tasks\/([^/]+)\/verdict$/, async (m, req) => {
   if (!task) throw httpError(404, "task not found");
   return task;
 });
+on("POST", /^\/api\/tasks\/([^/]+)\/feedback$/, async (m, req) => {
+  const body = await readBody(req);
+  const task = store.editFeedback(m[1], body.feedback);
+  if (!task) throw httpError(404, "task not found");
+  return task;
+});
 
 // ---- tasks (agent side) ---------------------------------------------------
 on("POST", /^\/api\/tasks\/claim$/, async (m, req) => {
@@ -121,6 +127,13 @@ on("POST", /^\/api\/agents\/heartbeat$/, async (m, req) => {
 on("POST", /^\/api\/reset$/, () => {
   store.clear();
   return { ok: true };
+});
+
+// ---- run control (start/stop the scheduler loop) --------------------------
+on("GET", /^\/api\/control$/, () => store.getControl());
+on("POST", /^\/api\/control$/, async (m, req) => {
+  const body = await readBody(req);
+  return store.setControl(body);
 });
 
 function httpError(status, message) {

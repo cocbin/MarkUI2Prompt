@@ -29,6 +29,7 @@ var TaskStore = class {
     this.tasks = /* @__PURE__ */ new Map();
     this.questions = /* @__PURE__ */ new Map();
     this.agents = /* @__PURE__ */ new Map();
+    this.control = { stop: false, updatedAt: 0 };
     this._saveTimer = null;
     this._load();
   }
@@ -39,6 +40,7 @@ var TaskStore = class {
       const raw = JSON.parse(readFileSync(this.file, "utf8"));
       for (const t of raw.tasks || []) this.tasks.set(t.id, t);
       for (const q of raw.questions || []) this.questions.set(q.id, q);
+      if (raw.control) this.control = { ...this.control, ...raw.control, stop: false };
     } catch {
     }
   }
@@ -51,7 +53,11 @@ var TaskStore = class {
         writeFileSync(
           this.file,
           JSON.stringify(
-            { tasks: [...this.tasks.values()], questions: [...this.questions.values()] },
+            {
+              tasks: [...this.tasks.values()],
+              questions: [...this.questions.values()],
+              control: this.control
+            },
             null,
             2
           )
@@ -111,6 +117,8 @@ var TaskStore = class {
       lockedBy: null,
       lockedAt: 0,
       agentSummary: "",
+      feedback: "",
+      // latest human rejection reason; cleared once re-fixed
       createdAt: now,
       updatedAt: now
     };
@@ -135,7 +143,11 @@ var TaskStore = class {
   listTasks() {
     return [...this.tasks.values()].sort((a, b) => a.createdAt - b.createdAt);
   }
-  /** Human verdict from the extension: confirm or reject (re-opens the task). */
+  /**
+   * Human verdict from the extension: confirm or reject (re-opens the task).
+   * A reject stores the human's reason as `feedback` (NOT overwriting the
+   * original `problem`) so a re-claiming agent fixes it differently.
+   */
   setHumanVerdict(id, verdict, note) {
     const task = this.tasks.get(id);
     if (!task) return null;
@@ -145,11 +157,39 @@ var TaskStore = class {
       task.status = TASK_STATUS.OPEN;
       task.lockedBy = null;
       task.lockedAt = 0;
+      if (note != null) task.feedback = String(note || "");
     }
-    if (note != null) task.problem = note || task.problem;
     task.updatedAt = Date.now();
     this._persist();
     return task;
+  }
+  /**
+   * Edit a rejected task's feedback. Only allowed while the task is still in
+   * the queue and unclaimed — once an agent has claimed it (in_progress) the
+   * reason is frozen until the next iteration (requirements item 4).
+   */
+  editFeedback(id, note) {
+    const task = this.tasks.get(id);
+    if (!task) return null;
+    const claimed = task.lockedBy && !this._lockExpired(task);
+    if (task.status !== TASK_STATUS.OPEN || claimed) {
+      const err = new Error("feedback locked: task already claimed by an agent");
+      err.status = 409;
+      throw err;
+    }
+    task.feedback = String(note == null ? "" : note);
+    task.updatedAt = Date.now();
+    this._persist();
+    return task;
+  }
+  // ---- run control (daemon / agents) ------------------------------------
+  getControl() {
+    return { ...this.control };
+  }
+  setControl(patch) {
+    this.control = { ...this.control, ...patch || {}, updatedAt: Date.now() };
+    this._persist();
+    return this.getControl();
   }
   // ---- tasks (agent side) -----------------------------------------------
   _lockExpired(task) {
@@ -186,6 +226,7 @@ var TaskStore = class {
     task.status = TASK_STATUS.AI_FIXED;
     task.lockedBy = agentId;
     task.agentSummary = summary || task.agentSummary;
+    task.feedback = "";
     task.updatedAt = Date.now();
     this.heartbeat(agentId);
     this._persist();
@@ -255,7 +296,8 @@ var TaskStore = class {
       serverTime: Date.now(),
       tasks: this.listTasks(),
       questions: this.listQuestions(),
-      agents: this.listAgents()
+      agents: this.listAgents(),
+      control: this.getControl()
     };
   }
 };
@@ -315,6 +357,12 @@ on("POST", /^\/api\/tasks\/([^/]+)\/verdict$/, async (m, req) => {
   if (!task) throw httpError(404, "task not found");
   return task;
 });
+on("POST", /^\/api\/tasks\/([^/]+)\/feedback$/, async (m, req) => {
+  const body = await readBody(req);
+  const task = store.editFeedback(m[1], body.feedback);
+  if (!task) throw httpError(404, "task not found");
+  return task;
+});
 on("POST", /^\/api\/tasks\/claim$/, async (m, req) => {
   const body = await readBody(req);
   if (!body.agentId) throw httpError(400, "agentId required");
@@ -356,6 +404,11 @@ on("POST", /^\/api\/agents\/heartbeat$/, async (m, req) => {
 on("POST", /^\/api\/reset$/, () => {
   store.clear();
   return { ok: true };
+});
+on("GET", /^\/api\/control$/, () => store.getControl());
+on("POST", /^\/api\/control$/, async (m, req) => {
+  const body = await readBody(req);
+  return store.setControl(body);
 });
 function httpError(status, message) {
   const err = new Error(message);

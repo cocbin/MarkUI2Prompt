@@ -1,6 +1,11 @@
 import { createAnnotation } from "../shared/annotation.js";
 import { t } from "../shared/i18n.js";
-import { captureElement, shortLabel, describeElementRef } from "./capture.js";
+import {
+  captureElement,
+  shortLabel,
+  describeElementRef,
+  describeElementLocation,
+} from "./capture.js";
 import { probeFramework } from "./framework-bridge.js";
 import { HOST_ID } from "./overlay/overlay.js";
 
@@ -36,11 +41,13 @@ function isEditable(node) {
  * and Esc closes our popover instead of a host dialog (requirements item 1).
  */
 export class Annotator {
-  constructor(overlay, { onCreate, getUrl, onExit }) {
+  constructor(overlay, { onCreate, getUrl, onExit, getLocale, onCopyLocation }) {
     this.overlay = overlay;
     this.onCreate = onCreate;
     this.getUrl = getUrl;
     this.onExit = onExit;
+    this.getLocale = getLocale || (() => undefined);
+    this.onCopyLocation = onCopyLocation;
     this.active = false;
     this.creating = false;
     this.picking = false;
@@ -58,6 +65,7 @@ export class Annotator {
     overlay.setModeHandlers({
       onSelectMode: () => this.setMode(ANNOTATE_MODE.SELECT),
       onNormalMode: () => this.setMode(ANNOTATE_MODE.NORMAL),
+      onGetLocation: () => this.pickLocationToClipboard(),
     });
   }
 
@@ -270,15 +278,60 @@ export class Annotator {
         this.overlay.closePopover();
       },
       onPick: (insert, onDone) => this._pickReference(insert, onDone),
+      onPickLocation: (insert, onDone) => this._pickLocation(insert, onDone),
     });
   }
 
   /** Sub-mode: click another element to insert its semantic reference. */
   _pickReference(insert, onDone) {
+    this._pick(
+      (el, framework) => describeElementRef(el, framework),
+      insert,
+      onDone,
+      t("create.pickHint"),
+    );
+  }
+
+  /**
+   * Sub-mode: click an element to insert its prompt-style *location* (UI path /
+   * component / selector) — the same string the export prompt shows, so users
+   * can grab a component path and hand-write the requirement (requirements
+   * item 6).
+   */
+  _pickLocation(insert, onDone) {
+    this._pick(
+      (el, framework) => describeElementLocation(el, framework, this.getLocale()),
+      insert,
+      onDone,
+      t("create.locHint"),
+    );
+  }
+
+  /**
+   * Toolbar action: pick an element and copy its location string straight to
+   * the clipboard (no create form open). Used by the bottom bar's "get element
+   * location" button (requirements item 6).
+   */
+  pickLocationToClipboard() {
+    if (this.picking || this.creating) return;
+    this._pick(
+      (el, framework) => describeElementLocation(el, framework, this.getLocale()),
+      (text) => this.onCopyLocation && this.onCopyLocation(text),
+      null,
+      t("create.locHint"),
+    );
+  }
+
+  /**
+   * Shared element-picking flow: enter pick mode, highlight on hover, and on the
+   * next click resolve the framework + hand `describe(el, framework)` to `emit`.
+   * `describe` may be async-free; framework probing is awaited here.
+   */
+  _pick(describe, emit, onDone, hint) {
     if (this.picking) return;
     this.picking = true;
     this.overlay.setPicking(true);
-    this.overlay.toolbarBusy(t("create.pickHint"));
+    this.overlay.toolbarBusy(hint || t("create.pickHint"));
 
     const finish = () => {
       this.picking = false;
@@ -305,7 +358,7 @@ export class Annotator {
       e.stopImmediatePropagation();
       finish();
       const framework = await probeFramework(el);
-      insert(describeElementRef(el, framework));
+      emit(describe(el, framework));
     };
 
     document.addEventListener("mousemove", move, true);

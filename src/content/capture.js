@@ -8,6 +8,7 @@ import {
 import { describeUiContext } from "./ui-context.js";
 import { captureTabPath } from "./tab-path.js";
 import { captureLayers } from "./dom-model.js";
+import { describeLocation } from "../shared/prompt.js";
 
 const MAX_OUTER_HTML = 4000;
 const MAX_INNER_TEXT = 2000;
@@ -74,4 +75,15 @@ export function describeElementRef(el, framework) {
     return `${selector}${label ? ` “${label}”` : ""}${stack}`;
   }
   return `${label || selector}${stack}`.trim();
+}
+
+/**
+ * Build the exact "location" line the exported prompt would show for an element
+ * (UI trail · path · component · selector). Used by the "get element location"
+ * picker so a user can grab a component path and hand-write the rest
+ * (requirements item 6).
+ */
+export function describeElementLocation(el, framework, locale) {
+  const parts = captureElement(el);
+  return describeLocation({ ...parts, framework }, locale);
 }

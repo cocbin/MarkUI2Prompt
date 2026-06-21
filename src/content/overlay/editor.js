@@ -37,8 +37,11 @@ export class EditorPopover {
     this.current = null;
     this.anchorRect = null;
     this.mode = ""; // create | detail | edit | reject | confirmDelete
-    this._create = null; // { onSave, onCancel, onPick, textarea }
+    this._create = null; // { onSave, onCancel, onPick, onPickLocation, textarea }
     this.onRequestClose = null; // set by the overlay to fully close + deselect
+    this.moved = false; // user dragged the popover → keep that position
+    this._onDrag = this._onDrag.bind(this);
+    this._endDrag = this._endDrag.bind(this);
   }
 
   isOpen() {
@@ -51,10 +54,14 @@ export class EditorPopover {
 
   close() {
     this.node.classList.remove("visible");
+    this.node.classList.remove("dragging");
     this.node.innerHTML = "";
+    this.node.style.left = "";
+    this.node.style.top = "";
     this.current = null;
     this.mode = "";
     this._create = null;
+    this.moved = false;
   }
 
   /**
@@ -92,6 +99,10 @@ export class EditorPopover {
       this.triggerPick();
       return true;
     }
+    if ((key === "l" || key === "L") && mode === "create" && (e.altKey || !inTextarea)) {
+      this.triggerPickLocation();
+      return true;
+    }
     return false;
   }
 
@@ -101,6 +112,7 @@ export class EditorPopover {
   }
 
   _position(rect) {
+    if (this.moved) return; // keep the position the user dragged it to
     const margin = 12;
     const pop = this.node.getBoundingClientRect();
     let left = rect.left;
@@ -115,6 +127,56 @@ export class EditorPopover {
     if (top < margin) top = margin;
     this.node.style.left = `${left}px`;
     this.node.style.top = `${top}px`;
+  }
+
+  /**
+   * Make the popover draggable by a grip injected into its header, so it never
+   * obstructs the content the user wants to see (requirements item 7). The grip
+   * is re-attached after each re-render; once dragged the position sticks across
+   * sub-views (detail → edit → reject) until the popover closes.
+   */
+  _wireDrag() {
+    const head = this.node.querySelector("h4");
+    if (!head) return;
+    let grip = head.querySelector(".po-grip");
+    if (!grip) {
+      grip = document.createElement("button");
+      grip.className = "po-grip";
+      grip.type = "button";
+      grip.title = t("toolbar.drag");
+      grip.setAttribute("aria-label", t("toolbar.drag"));
+      grip.innerHTML = icon("grip", { size: 14 });
+      head.insertBefore(grip, head.firstChild);
+    }
+    grip.onpointerdown = (e) => this._startDrag(e);
+  }
+
+  _startDrag(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = this.node.getBoundingClientRect();
+    this._drag = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+    this.node.classList.add("dragging");
+    document.addEventListener("pointermove", this._onDrag, true);
+    document.addEventListener("pointerup", this._endDrag, true);
+  }
+
+  _onDrag(e) {
+    if (!this._drag) return;
+    const w = this.node.offsetWidth;
+    const h = this.node.offsetHeight;
+    const left = Math.max(6, Math.min(e.clientX - this._drag.dx, window.innerWidth - w - 6));
+    const top = Math.max(6, Math.min(e.clientY - this._drag.dy, window.innerHeight - h - 6));
+    this.node.style.left = `${left}px`;
+    this.node.style.top = `${top}px`;
+    this.moved = true;
+  }
+
+  _endDrag() {
+    this._drag = null;
+    this.node.classList.remove("dragging");
+    document.removeEventListener("pointermove", this._onDrag, true);
+    document.removeEventListener("pointerup", this._endDrag, true);
   }
 
   _insertAtCaret(textarea, text) {
@@ -132,13 +194,15 @@ export class EditorPopover {
   }
 
   /** Creation form for a brand new annotation. */
-  openCreate(anchorRect, { onSave, onCancel, onPick }) {
+  openCreate(anchorRect, { onSave, onCancel, onPick, onPickLocation }) {
     this.mode = "create";
+    this.moved = false;
     this.node.innerHTML = `
       <h4>${icon("plus", { size: 15 })} <span>${t("create.title")}</span></h4>
       <textarea placeholder="${t("create.placeholder")}"></textarea>
       <div class="row">
         <button class="ghost" data-act="pick">${icon("pointer", { size: 14 })}<span>${t("create.pick")}</span></button>
+        <button class="ghost" data-act="loc">${icon("locatePick", { size: 14 })}<span>${t("create.getLocation")}</span></button>
       </div>
       <div class="row">
         <button class="primary" data-act="save">${icon("check", { size: 14 })}<span>${t("create.save")}</span></button>
@@ -146,10 +210,12 @@ export class EditorPopover {
       </div>
       <div class="kbd-hint">${t("create.hint")}</div>`;
     const textarea = this.node.querySelector("textarea");
-    this._create = { onSave, onCancel, onPick, textarea };
+    this._create = { onSave, onCancel, onPick, onPickLocation, textarea };
     this.node.querySelector('[data-act="save"]').onclick = () => this.saveCreate();
     this.node.querySelector('[data-act="cancel"]').onclick = () => onCancel && onCancel();
     this.node.querySelector('[data-act="pick"]').onclick = () => this.triggerPick();
+    this.node.querySelector('[data-act="loc"]').onclick = () => this.triggerPickLocation();
+    this._wireDrag();
     this._show(anchorRect);
     setTimeout(() => textarea.focus(), 0);
   }
@@ -174,6 +240,20 @@ export class EditorPopover {
     );
   }
 
+  /** Pick an element and insert its prompt-style location string (L / button). */
+  triggerPickLocation() {
+    if (this.mode !== "create" || !this._create || !this._create.onPickLocation) return;
+    const { textarea, onPickLocation } = this._create;
+    textarea.classList.add("picking");
+    onPickLocation(
+      (text) => {
+        this._insertAtCaret(textarea, text);
+        textarea.classList.remove("picking");
+      },
+      () => textarea.classList.remove("picking"),
+    );
+  }
+
   /** Save the edit form (Save button or Enter). */
   saveEdit() {
     if (this.mode !== "edit" || !this._edit) return;
@@ -186,6 +266,7 @@ export class EditorPopover {
     this.current = annotation;
     this.anchorRect = anchorRect;
     this.handlers = handlers || {};
+    this.moved = false; // a freshly selected marker re-anchors near its dot
     this._renderDetail(annotation, anchorRect);
   }
 
@@ -205,6 +286,7 @@ export class EditorPopover {
         <button class="danger" data-act="delete">${icon("trash", { size: 14 })}<span>${t("detail.delete")}</span></button>
       </div>`;
     this._wireDetail(annotation, anchorRect);
+    this._wireDrag();
     this._show(anchorRect);
   }
 
@@ -252,6 +334,7 @@ export class EditorPopover {
     this.node.querySelector('[data-act="confirm"]').onclick = () => this.confirmDelete();
     this.node.querySelector('[data-act="cancel"]').onclick = () =>
       this._renderDetail(annotation, anchorRect);
+    this._wireDrag();
     this._position(anchorRect);
     setTimeout(() => this.node.querySelector('[data-act="confirm"]').focus(), 0);
   }
@@ -283,16 +366,24 @@ export class EditorPopover {
     this.node.querySelector('[data-act="save"]').onclick = () => this.saveEdit();
     this.node.querySelector('[data-act="back"]').onclick = () =>
       this._renderDetail(annotation, anchorRect);
+    this._wireDrag();
     this._position(anchorRect);
     setTimeout(() => textarea.focus(), 0);
   }
 
+  /**
+   * Reject the current fix with a reason. The reason is the human's *feedback*
+   * for the next attempt — it is logged to history and (in loop mode) sent to
+   * the broker as the task's feedback, without overwriting the original problem
+   * description (requirements item 4).
+   */
   _renderReject(annotation, anchorRect) {
     this.mode = "reject";
     this.node.innerHTML = `
-      <h4>${icon("x", { size: 15 })} <span>${t("reject.title")}</span></h4>
+      <h4>${icon("reopen", { size: 15 })} <span>${t("reject.title")}</span></h4>
+      <div class="note-view">${escapeHtml(annotation.userNote) || t("item.noNote")}</div>
       <div class="meta">${t("reject.hint")}</div>
-      <textarea>${escapeHtml(annotation.userNote)}</textarea>
+      <textarea placeholder="${t("reject.placeholder")}"></textarea>
       <div class="row">
         <button class="danger" data-act="confirm">${icon("reopen", { size: 14 })}<span>${t("reject.confirm")}</span></button>
         <button class="ghost" data-act="back">${icon("x", { size: 14 })}<span>${t("reject.back")}</span></button>
@@ -303,6 +394,7 @@ export class EditorPopover {
       this.handlers.onSetStatus(annotation, STATUS.REJECTED, (textarea.value || "").trim());
     this.node.querySelector('[data-act="back"]').onclick = () =>
       this._renderDetail(annotation, anchorRect);
+    this._wireDrag();
     this._position(anchorRect);
     setTimeout(() => textarea.focus(), 0);
   }

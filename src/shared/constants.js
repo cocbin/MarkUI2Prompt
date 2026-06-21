@@ -78,6 +78,8 @@ export const MSG = {
   LOOP_ANSWER: "LOOP_ANSWER",
   LOOP_RESET: "LOOP_RESET",
   LOOP_PROMPT: "LOOP_PROMPT",
+  LOOP_FEEDBACK: "LOOP_FEEDBACK", // edit a rejected task's reason while it is still unclaimed
+  LOOP_STOP: "LOOP_STOP", // ask running agents/daemon to stop after the current task
 };
 
 /**

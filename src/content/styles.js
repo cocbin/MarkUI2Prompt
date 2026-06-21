@@ -140,6 +140,7 @@ ${TOKENS}
   animation: pop-in 140ms var(--u-ease);
 }
 .popover.visible { display: block; }
+.popover.dragging { animation: none; cursor: grabbing; user-select: none; }
 .popover h4 {
   margin: 0 0 10px;
   font-size: 13px;
@@ -148,6 +149,15 @@ ${TOKENS}
   align-items: center;
   gap: 7px;
 }
+.popover .po-grip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin: -2px 2px -2px -4px; padding: 0;
+  border: none; background: transparent; color: var(--u-text-3);
+  border-radius: 6px; cursor: grab; touch-action: none; flex: 0 0 auto;
+}
+.popover .po-grip:hover { color: var(--u-text); background: var(--u-surface-2); }
+.popover.dragging .po-grip { cursor: grabbing; }
+.popover .po-grip .icon { width: 14px; height: 14px; }
 .popover .badge {
   display: inline-flex;
   align-items: center;
@@ -287,6 +297,7 @@ ${TOKENS}
 .toolbar .tb-shot { padding: 7px; background: var(--u-surface-2); color: var(--u-text); border-color: var(--u-border); }
 .toolbar .tb-exitshot { background: linear-gradient(180deg, var(--u-primary-hover), var(--u-primary)); color: var(--u-on-primary); box-shadow: inset 0 1px 0 rgba(255,255,255,.18); }
 .toolbar .tb-exit { background: var(--u-surface-2); color: var(--u-text); border-color: var(--u-border); }
+.toolbar .tb-copy, .toolbar .tb-loc { background: var(--u-surface-2); color: var(--u-text); border-color: var(--u-border); }
 .toolbar button:hover { filter: brightness(1.08); }
 .toolbar button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--u-ring); }
 

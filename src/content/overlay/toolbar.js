@@ -40,6 +40,9 @@ export class Toolbar {
         <button class="tb-mode" type="button" data-mode="normal" title="${t("toolbar.modeNormalTip")}">${icon("pointer", { size: 15 })}<span class="tb-mode-label">${t("toolbar.modeNormal")}</span><kbd>N</kbd></button>
       </div>
       <span class="tb-sep"></span>
+      <button class="tb-copy" type="button" title="${t("toolbar.copyPageTip")}">${icon("copy", { size: 15 })}<span>${t("toolbar.copyPage")}</span></button>
+      <button class="tb-loc" type="button" title="${t("toolbar.getLocationTip")}">${icon("locatePick", { size: 15 })}<span>${t("toolbar.getLocation")}</span></button>
+      <span class="tb-sep"></span>
       <button class="tb-shot" type="button" title="${t("toolbar.shot")}">${icon("camera", { size: 15 })}</button>
       <button class="tb-exitshot" type="button">${icon("camera", { size: 15 })}<span>${t("toolbar.exitShot")}</span></button>
       <button class="tb-exit" type="button">${icon("logout", { size: 15 })}<span>${t("toolbar.exit")}</span></button>`;
@@ -48,6 +51,10 @@ export class Toolbar {
     this.node.querySelector(".tb-exitshot").onclick = () =>
       this.handlers.onExitShot && this.handlers.onExitShot();
     this.node.querySelector(".tb-exit").onclick = () => this.handlers.onExit && this.handlers.onExit();
+    this.node.querySelector(".tb-copy").onclick = () =>
+      this.handlers.onCopyPage && this.handlers.onCopyPage();
+    this.node.querySelector(".tb-loc").onclick = () =>
+      this.handlers.onGetLocation && this.handlers.onGetLocation();
     this.node.querySelector('[data-mode="select"]').onclick = () =>
       this.handlers.onSelectMode && this.handlers.onSelectMode();
     this.node.querySelector('[data-mode="normal"]').onclick = () =>

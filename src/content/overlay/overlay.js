@@ -60,6 +60,8 @@ export class OverlayManager {
       onExit: () => this.actions.onExitMode && this.actions.onExitMode(),
       onShot: () => this.actions.onCapture && this.actions.onCapture(),
       onExitShot: () => this.actions.onExitShot && this.actions.onExitShot(),
+      onCopyPage: () => this.actions.onCopyPage && this.actions.onCopyPage(),
+      onGetLocation: () => this.modeHandlers.onGetLocation && this.modeHandlers.onGetLocation(),
       onSelectMode: () => this.modeHandlers.onSelectMode && this.modeHandlers.onSelectMode(),
       onNormalMode: () => this.modeHandlers.onNormalMode && this.modeHandlers.onNormalMode(),
     });

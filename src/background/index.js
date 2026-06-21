@@ -83,6 +83,8 @@ const LOOP_TYPES = new Set([
   MSG.LOOP_ANSWER,
   MSG.LOOP_RESET,
   MSG.LOOP_PROMPT,
+  MSG.LOOP_FEEDBACK,
+  MSG.LOOP_STOP,
 ]);
 
 async function loopLocale() {
@@ -102,6 +104,10 @@ async function handleLoop(message) {
       return { prompt: buildLoopPrompt({ locale }), brokerUrl: url };
     case MSG.LOOP_ANSWER:
       return Broker.answer(url, message.questionId, message.answer);
+    case MSG.LOOP_FEEDBACK:
+      return Broker.editFeedback(url, message.id, message.feedback);
+    case MSG.LOOP_STOP:
+      return Broker.control(url, { stop: true });
     case MSG.LOOP_RESET:
       return Broker.reset(url);
     case MSG.LOOP_PUSH: {
@@ -136,10 +142,12 @@ async function syncLoopSideEffects(message, data) {
       }
     } else if (message.type === MSG.SET_STATUS && data) {
       if (data.status === STATUS.CONFIRMED) await Broker.verdict(url, data.id, "confirm");
-      // Reopen (OPEN) and Reject (REJECTED) both return the task to the queue,
-      // unlocked, so an agent can pick it up again.
+      // Reopen and Reject both re-open the task (applyStatus turns reject→open),
+      // unlocked, so an agent can pick it up again. A reject also carries the
+      // human's reason (message.note) → stored as the task's feedback so the
+      // re-claiming agent knows what to do differently (requirements item 4).
       else if (data.status === STATUS.OPEN || data.status === STATUS.REJECTED)
-        await Broker.verdict(url, data.id, "reject");
+        await Broker.verdict(url, data.id, "reject", message.note);
     } else if (message.type === MSG.DELETE_ANNOTATION) {
       await Broker.removeTask(url, message.id);
     } else if (message.type === MSG.CLEAR_PAGE) {

@@ -13,12 +13,14 @@ const entries = {
   "main-world": "src/content/main-world.js",
   background: "src/background/index.js",
   popup: "src/popup/popup.js",
+  "loop-page": "src/popup/loop-page.js",
 };
 
 /** Copy static assets (manifest, popup html/css, icons, guide images) into dist. */
 async function copyStatic() {
   await cp(resolve(root, "public/manifest.json"), resolve(outdir, "manifest.json"));
   await cp(resolve(root, "src/popup/popup.html"), resolve(outdir, "popup.html"));
+  await cp(resolve(root, "src/popup/loop-page.html"), resolve(outdir, "loop-page.html"));
   await cp(resolve(root, "src/popup/popup.css"), resolve(outdir, "popup.css"));
   if (existsSync(resolve(root, "icons"))) {
     await cp(resolve(root, "icons"), resolve(outdir, "icons"), { recursive: true });
